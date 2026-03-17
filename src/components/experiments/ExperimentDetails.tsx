@@ -1,25 +1,17 @@
 import { formatNumber, formatPercent } from '../../lib/formatters'
+import {
+  getLaunchReadinessLabel,
+  getVariantConversionRate,
+} from '../../lib/experiments'
 import type { Experiment } from '../../types/experiment'
 
 interface ExperimentDetailsProps {
   experiment: Experiment
 }
 
-const getReadinessLabel = (confidence: number) => {
-  if (confidence >= 0.95) {
-    return 'Ready to launch'
-  }
-
-  if (confidence >= 0.8) {
-    return 'Monitor closely'
-  }
-
-  return 'Needs more data'
-}
-
 export function ExperimentDetails({ experiment }: ExperimentDetailsProps) {
   const confidence = experiment.results.confidence
-  const readinessLabel = getReadinessLabel(confidence)
+  const readinessLabel = getLaunchReadinessLabel(confidence)
   const trafficAllocation = experiment.variants
     .map((variant) => `${variant.name} ${variant.allocation}%`)
     .join(' / ')
@@ -71,54 +63,49 @@ export function ExperimentDetails({ experiment }: ExperimentDetailsProps) {
       </div>
 
       <div className="experiment-details__variants">
-        {experiment.variants.map((variant) => {
-          const conversionRate =
-            variant.visitors === 0 ? 0 : variant.conversions / variant.visitors
-
-          return (
-            <article className="experiment-details__variant-card" key={variant.id}>
-              <div className="experiment-details__variant-header">
-                <div>
-                  <strong>{variant.name}</strong>
-                  <p>{variant.description}</p>
-                </div>
-                <span className="badge badge--neutral">
-                  {variant.isControl ? 'Control' : 'Variant'}
-                </span>
+        {experiment.variants.map((variant) => (
+          <article className="experiment-details__variant-card" key={variant.id}>
+            <div className="experiment-details__variant-header">
+              <div>
+                <strong>{variant.name}</strong>
+                <p>{variant.description}</p>
               </div>
+              <span className="badge badge--neutral">
+                {variant.isControl ? 'Control' : 'Variant'}
+              </span>
+            </div>
 
-              <div className="experiment-details__kpis">
-                <div>
-                  <span className="label">Visitors</span>
-                  <strong>{formatNumber(variant.visitors)}</strong>
-                </div>
-                <div>
-                  <span className="label">Conversions</span>
-                  <strong>{formatNumber(variant.conversions)}</strong>
-                </div>
-                <div>
-                  <span className="label">Conversion rate</span>
-                  <strong>{formatPercent(conversionRate)}</strong>
-                </div>
+            <div className="experiment-details__kpis">
+              <div>
+                <span className="label">Visitors</span>
+                <strong>{formatNumber(variant.visitors)}</strong>
               </div>
+              <div>
+                <span className="label">Conversions</span>
+                <strong>{formatNumber(variant.conversions)}</strong>
+              </div>
+              <div>
+                <span className="label">Conversion rate</span>
+                <strong>{formatPercent(getVariantConversionRate(variant))}</strong>
+              </div>
+            </div>
 
-              <div className="experiment-details__config">
-                <div>
-                  <span className="label">Headline</span>
-                  <p>{variant.config.headline}</p>
-                </div>
-                <div>
-                  <span className="label">CTA</span>
-                  <p>{variant.config.ctaLabel}</p>
-                </div>
-                <div>
-                  <span className="label">Theme</span>
-                  <p>{variant.config.theme}</p>
-                </div>
+            <div className="experiment-details__config">
+              <div>
+                <span className="label">Headline</span>
+                <p>{variant.config.headline}</p>
               </div>
-            </article>
-          )
-        })}
+              <div>
+                <span className="label">CTA</span>
+                <p>{variant.config.ctaLabel}</p>
+              </div>
+              <div>
+                <span className="label">Theme</span>
+                <p>{variant.config.theme}</p>
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )

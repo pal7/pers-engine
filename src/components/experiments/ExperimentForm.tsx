@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react'
+import {
+  buildExperimentPageUrl,
+  getTotalTrafficAllocation,
+} from '../../lib/experiments'
 import type { Audience, Experiment, ExperimentType } from '../../types/experiment'
 
 interface ExperimentFormProps {
@@ -19,22 +23,25 @@ interface ExperimentFormState {
 }
 
 const defaultGuardrailType = 'Bounce rate'
-
-const buildPageUrl = (page: string) => {
-  const slug = page.toLowerCase().replace(/\s+/g, '-')
-  return `https://app.acme-personalize.com/${slug}`
-}
+const experimentTypeOptions: ExperimentType[] = [
+  'A/B Test',
+  'Feature Experiment',
+  'Personalization',
+]
+const guardrailTypeOptions = [
+  'Bounce rate',
+  'Exit rate',
+  'Error rate',
+  'Latency',
+]
 
 const createInitialState = (experiment: Experiment): ExperimentFormState => ({
   experimentName: experiment.name,
-  pageUrl: buildPageUrl(experiment.page),
+  pageUrl: buildExperimentPageUrl(experiment.page),
   experimentType: experiment.type,
   primaryMetric: experiment.primaryMetric,
   audienceId: experiment.audienceId,
-  trafficAllocation: experiment.variants.reduce(
-    (total, variant) => total + variant.allocation,
-    0,
-  ),
+  trafficAllocation: getTotalTrafficAllocation(experiment.variants),
   guardrailEnabled: true,
   guardrailType: defaultGuardrailType,
   threshold: '5%',
@@ -97,9 +104,11 @@ export function ExperimentForm({ experiment, audiences }: ExperimentFormProps) {
             }
             value={formState.experimentType}
           >
-            <option value="A/B Test">A/B Test</option>
-            <option value="Feature Experiment">Feature Experiment</option>
-            <option value="Personalization">Personalization</option>
+            {experimentTypeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -162,10 +171,11 @@ export function ExperimentForm({ experiment, audiences }: ExperimentFormProps) {
             onChange={(event) => updateField('guardrailType', event.target.value)}
             value={formState.guardrailType}
           >
-            <option value="Bounce rate">Bounce rate</option>
-            <option value="Exit rate">Exit rate</option>
-            <option value="Error rate">Error rate</option>
-            <option value="Latency">Latency</option>
+            {guardrailTypeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
         </label>
 

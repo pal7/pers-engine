@@ -1,21 +1,15 @@
 import { formatPercent, formatSignedPercent } from '../../lib/formatters'
+import type { ResultsDecisionSummary } from '../../lib/experiments'
 import type {
   MetricTrendPoint,
   SegmentPerformancePoint,
 } from '../../types/experiment'
 
-interface DecisionSummary {
-  recommendedWinner: string
-  strongestMetric: string
-  bestPattern: string
-  nextAction: string
-}
-
 interface ResultsSummaryProps {
   experimentName: string
   metricTrend: MetricTrendPoint[]
   segmentPerformance: SegmentPerformancePoint[]
-  decisionSummary: DecisionSummary
+  decisionSummary: ResultsDecisionSummary
 }
 
 export function ResultsSummary({
@@ -54,11 +48,17 @@ export function ResultsSummary({
             </div>
           </div>
 
-          <div className="results-summary__chart-surface" aria-label="Segment lift chart placeholder">
+          <div
+            aria-label="Segment lift chart placeholder"
+            className="results-summary__chart-surface"
+          >
             <div className="results-summary__chart-grid" aria-hidden="true" />
             <div className="results-summary__chart-bars">
               {segmentPerformance.map((segment) => {
-                const barHeight = `${Math.max((Math.abs(segment.lift) / maxLift) * 100, 18)}%`
+                const barHeight = `${Math.max(
+                  (Math.abs(segment.lift) / maxLift) * 100,
+                  18,
+                )}%`
 
                 return (
                   <div className="results-summary__chart-column" key={segment.id}>
