@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AudienceLibrary } from '../components/audiences/AudienceLibrary'
 import { AudienceRuleBuilder } from '../components/audiences/AudienceRuleBuilder'
@@ -12,22 +12,36 @@ import { VariantBuilder } from '../components/experiments/VariantBuilder'
 import { ResultsSummary } from '../components/results/ResultsSummary'
 import { mockAudiences } from '../data/mockAudiences'
 import { mockExperiments } from '../data/mockExperiments'
-import { buildResultsDecisionSummary } from '../lib/experiments'
+import {
+  buildExperimentFromDraft,
+  buildResultsDecisionSummary,
+  createExperimentDraft,
+  loadExperiments,
+  saveExperiments,
+} from '../lib/experiments'
 import { workbenchTabs } from '../lib/workbench'
 import type { WorkbenchTab } from '../lib/workbench'
-import type { ExperimentStatus } from '../types/experiment'
+import type { ExperimentDraft, ExperimentStatus } from '../types/experiment'
 
 export function PersonalizationWorkbench() {
-  const defaultExperiment = mockExperiments[0]
+  const [experiments, setExperiments] = useState(() => loadExperiments(mockExperiments))
+  const defaultExperiment = experiments[0]
   const [activeTab, setActiveTab] = useState<WorkbenchTab>('Overview')
   const [selectedExperimentId, setSelectedExperimentId] = useState(
     defaultExperiment?.id ?? '',
   )
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | ExperimentStatus>('All')
+  const [builderDraft, setBuilderDraft] = useState<ExperimentDraft>(() =>
+    createExperimentDraft(mockAudiences),
+  )
+
+  useEffect(() => {
+    saveExperiments(experiments)
+  }, [experiments])
 
   const selectedExperiment =
-    mockExperiments.find(({ id }) => id === selectedExperimentId) ??
+    experiments.find(({ id }) => id === selectedExperimentId) ??
     defaultExperiment
 
   if (!selectedExperiment) {
@@ -39,10 +53,49 @@ export function PersonalizationWorkbench() {
   )
   const resultsDecisionSummary = buildResultsDecisionSummary(selectedExperiment)
 
+  const updateBuilderDraft = <K extends keyof ExperimentDraft>(
+    field: K,
+    value: ExperimentDraft[K],
+  ) => {
+    setBuilderDraft((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  const updateBuilderVariant = (
+    variantId: string,
+    field: 'headline' | 'ctaText' | 'theme' | 'notes',
+    value: string,
+  ) => {
+    setBuilderDraft((current) => ({
+      ...current,
+      variants: current.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              [field]: value,
+            }
+          : variant,
+      ),
+    }))
+  }
+
+  const handleSaveExperiment = () => {
+    const newExperiment = buildExperimentFromDraft(builderDraft, mockAudiences)
+
+    setExperiments((current) => [newExperiment, ...current])
+    setSelectedExperimentId(newExperiment.id)
+    setSearch('')
+    setStatusFilter('All')
+    setActiveTab('Experiments')
+    setBuilderDraft(createExperimentDraft(mockAudiences))
+  }
+
   const tabContent = {
     Overview: (
       <div className="workbench-section">
-        <StatsCards experiments={mockExperiments} />
+        <StatsCards experiments={experiments} />
         <section className="content-grid content-grid--primary">
           <ExperimentDetails experiment={selectedExperiment} />
           <ResultsSummary
@@ -57,7 +110,7 @@ export function PersonalizationWorkbench() {
     Experiments: (
       <section className="content-grid content-grid--primary">
         <ExperimentList
-          experiments={mockExperiments}
+          experiments={experiments}
           onSearchChange={setSearch}
           onSelectExperiment={setSelectedExperimentId}
           onStatusFilterChange={setStatusFilter}
@@ -70,8 +123,16 @@ export function PersonalizationWorkbench() {
     ),
     Builder: (
       <section className="content-grid">
-        <ExperimentForm audiences={mockAudiences} experiment={selectedExperiment} />
-        <VariantBuilder />
+        <ExperimentForm
+          audiences={mockAudiences}
+          draft={builderDraft}
+          onDraftChange={updateBuilderDraft}
+          onSaveExperiment={handleSaveExperiment}
+        />
+        <VariantBuilder
+          onVariantChange={updateBuilderVariant}
+          variants={builderDraft.variants}
+        />
       </section>
     ),
     Audiences: (

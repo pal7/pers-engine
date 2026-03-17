@@ -1,53 +1,18 @@
-import { useState } from 'react'
+import type { ExperimentDraftVariant } from '../../types/experiment'
 
-interface VariantDraft {
-  id: string
-  name: string
-  headline: string
-  ctaText: string
-  theme: string
-  notes: string
+interface VariantBuilderProps {
+  variants: ExperimentDraftVariant[]
+  onVariantChange: (
+    variantId: string,
+    field: keyof Omit<ExperimentDraftVariant, 'id' | 'name'>,
+    value: string,
+  ) => void
 }
 
-const initialVariants: VariantDraft[] = [
-  {
-    id: 'control',
-    name: 'Control',
-    headline: 'Personalization that scales',
-    ctaText: 'Book a demo',
-    theme: 'Core brand',
-    notes: 'Baseline message used for current production traffic.',
-  },
-  {
-    id: 'variant-a',
-    name: 'Variant A',
-    headline: 'Personalization for ecommerce teams',
-    ctaText: 'See ecommerce results',
-    theme: 'Ecommerce spotlight',
-    notes: 'Use stronger retail proof points for acquisition traffic.',
-  },
-]
-
-export function VariantBuilder() {
-  const [variants, setVariants] = useState<VariantDraft[]>(initialVariants)
-
-  const updateVariant = (
-    variantId: string,
-    field: keyof Omit<VariantDraft, 'id' | 'name'>,
-    value: string,
-  ) => {
-    setVariants((current) =>
-      current.map((variant) =>
-        variant.id === variantId
-          ? {
-              ...variant,
-              [field]: value,
-            }
-          : variant,
-      ),
-    )
-  }
-
+export function VariantBuilder({
+  variants,
+  onVariantChange,
+}: VariantBuilderProps) {
   return (
     <section className="panel">
       <div className="panel__header">
@@ -74,7 +39,7 @@ export function VariantBuilder() {
                 <span>Headline</span>
                 <input
                   onChange={(event) =>
-                    updateVariant(variant.id, 'headline', event.target.value)
+                    onVariantChange(variant.id, 'headline', event.target.value)
                   }
                   type="text"
                   value={variant.headline}
@@ -85,7 +50,7 @@ export function VariantBuilder() {
                 <span>CTA text</span>
                 <input
                   onChange={(event) =>
-                    updateVariant(variant.id, 'ctaText', event.target.value)
+                    onVariantChange(variant.id, 'ctaText', event.target.value)
                   }
                   type="text"
                   value={variant.ctaText}
@@ -96,7 +61,7 @@ export function VariantBuilder() {
                 <span>Theme / treatment</span>
                 <input
                   onChange={(event) =>
-                    updateVariant(variant.id, 'theme', event.target.value)
+                    onVariantChange(variant.id, 'theme', event.target.value)
                   }
                   type="text"
                   value={variant.theme}
@@ -107,7 +72,7 @@ export function VariantBuilder() {
                 <span>Notes</span>
                 <textarea
                   onChange={(event) =>
-                    updateVariant(variant.id, 'notes', event.target.value)
+                    onVariantChange(variant.id, 'notes', event.target.value)
                   }
                   rows={4}
                   value={variant.notes}

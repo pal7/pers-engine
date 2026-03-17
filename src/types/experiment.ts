@@ -24,6 +24,15 @@ export interface Variant {
   config: VariantConfig
 }
 
+export interface ExperimentDraftVariant {
+  id: string
+  name: string
+  headline: string
+  ctaText: string
+  theme: string
+  notes: string
+}
+
 export interface AudienceRule {
   id: string
   field: string
@@ -82,4 +91,15 @@ export interface Experiment {
   }
   segmentPerformance: SegmentPerformancePoint[]
   metricTrend: MetricTrendPoint[]
+}
+
+export interface ExperimentDraft {
+  experimentName: string
+  pageUrl: string
+  experimentType: ExperimentType
+  primaryMetric: string
+  audienceId: string
+  trafficAllocation: number
+  status: ExperimentStatus
+  variants: ExperimentDraftVariant[]
 }

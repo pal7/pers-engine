@@ -18,6 +18,7 @@ export function ResultsSummary({
   segmentPerformance,
   decisionSummary,
 }: ResultsSummaryProps) {
+  const hasSegmentPerformance = segmentPerformance.length > 0
   const maxLift = Math.max(
     ...segmentPerformance.map(({ lift }) => Math.abs(lift)),
     0.01,
@@ -54,39 +55,47 @@ export function ResultsSummary({
           >
             <div className="results-summary__chart-grid" aria-hidden="true" />
             <div className="results-summary__chart-bars">
-              {segmentPerformance.map((segment) => {
-                const barHeight = `${Math.max(
-                  (Math.abs(segment.lift) / maxLift) * 100,
-                  18,
-                )}%`
+              {hasSegmentPerformance ? (
+                segmentPerformance.map((segment) => {
+                  const barHeight = `${Math.max(
+                    (Math.abs(segment.lift) / maxLift) * 100,
+                    18,
+                  )}%`
 
-                return (
-                  <div className="results-summary__chart-column" key={segment.id}>
-                    <span className="results-summary__chart-value">
-                      {formatSignedPercent(segment.lift)}
-                    </span>
-                    <div className="results-summary__chart-bar-wrap">
-                      <div
-                        className="results-summary__chart-bar"
-                        style={{ height: barHeight }}
-                      />
+                  return (
+                    <div className="results-summary__chart-column" key={segment.id}>
+                      <span className="results-summary__chart-value">
+                        {formatSignedPercent(segment.lift)}
+                      </span>
+                      <div className="results-summary__chart-bar-wrap">
+                        <div
+                          className="results-summary__chart-bar"
+                          style={{ height: barHeight }}
+                        />
+                      </div>
+                      <strong>{segment.segmentName}</strong>
+                      <span>{formatPercent(segment.conversionRate)}</span>
                     </div>
-                    <strong>{segment.segmentName}</strong>
-                    <span>{formatPercent(segment.conversionRate)}</span>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <div className="results-summary__empty-state">
+                  Segment lift will appear after the experiment starts collecting traffic.
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="results-summary__chart-footer">
-            {metricTrend.map((point) => (
-              <div className="results-summary__trend-point" key={point.date}>
-                <span>{point.date}</span>
-                <strong>{formatPercent(point.value)}</strong>
-              </div>
-            ))}
-          </div>
+          {metricTrend.length > 0 ? (
+            <div className="results-summary__chart-footer">
+              {metricTrend.map((point) => (
+                <div className="results-summary__trend-point" key={point.date}>
+                  <span>{point.date}</span>
+                  <strong>{formatPercent(point.value)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </article>
 
         <div className="results-summary__decisions">
