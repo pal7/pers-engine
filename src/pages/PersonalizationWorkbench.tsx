@@ -14,6 +14,7 @@ import { SimulatorPanel } from '../components/simulator/SimulatorPanel'
 import { mockAudiences } from '../data/mockAudiences'
 import { mockExperiments } from '../data/mockExperiments'
 import { buildExperimentWithEventResults } from '../lib/experimentEventResults'
+import { clearDemoData } from '../lib/demoReset'
 import {
   buildExperimentFromDraft,
   buildResultsDecisionSummary,
@@ -120,6 +121,26 @@ export function PersonalizationWorkbench() {
     setSearch('')
     setStatusFilter('All')
     setActiveTab('Experiments')
+    setBuilderDraft(createExperimentDraft(mockAudiences))
+  }
+
+  const handleResetDemo = () => {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Reset demo data? This clears saved experiments, sticky assignments, and simulator events.',
+      )
+    ) {
+      return
+    }
+
+    clearDemoData()
+    setExperiments(mockExperiments)
+    setExperimentEvents([])
+    setSelectedExperimentId(mockExperiments[0]?.id ?? '')
+    setSearch('')
+    setStatusFilter('All')
+    setActiveTab('Overview')
     setBuilderDraft(createExperimentDraft(mockAudiences))
   }
 
@@ -248,6 +269,9 @@ export function PersonalizationWorkbench() {
           <span className={`badge badge--${selectedExperimentView.status}`}>
             {formatExperimentStatus(selectedExperimentView.status)}
           </span>
+          <button className="button button--secondary" onClick={handleResetDemo} type="button">
+            Reset demo
+          </button>
           <button
             className="button button--primary"
             onClick={() => setActiveTab('Builder')}
@@ -265,3 +289,4 @@ export function PersonalizationWorkbench() {
     </AppShell>
   )
 }
+
