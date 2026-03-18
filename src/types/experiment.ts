@@ -19,6 +19,7 @@ export interface Variant {
   id: string
   name: string
   allocation: number
+  weight: number
   visitors: number
   conversions: number
   description: string
@@ -29,6 +30,7 @@ export interface Variant {
 export interface ExperimentDraftVariant {
   id: string
   name: string
+  weight: number
   headline: string
   ctaText: string
   theme: string
