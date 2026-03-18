@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   createSimulationRequest,
+  formatAssignmentState,
   simulatorDeviceOptions,
   simulateExperimentDecision,
 } from '../../lib/simulator'
@@ -138,6 +139,10 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
           <article className="simulator-result__card">
             <span className="label">Assigned variant</span>
             <strong>{simulationResult.assignedVariant?.name ?? 'None'}</strong>
+          </article>
+          <article className="simulator-result__card">
+            <span className="label">Assignment state</span>
+            <strong>{formatAssignmentState(simulationResult.assignmentState)}</strong>
           </article>
         </div>
 

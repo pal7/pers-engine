@@ -1,7 +1,12 @@
 import { formatTargetMatchType } from './experiments'
+import {
+  getStickyAssignment,
+  setStickyAssignment,
+} from './stickyAssignments'
 import type { Audience, AudienceRule, Experiment, Variant } from '../types/experiment'
 
 export type SimulatorDevice = 'desktop' | 'mobile' | 'tablet'
+export type AssignmentState = 'reused' | 'newlyCreated' | 'none'
 
 export interface SimulationRequestContext {
   pageUrl: string
@@ -33,8 +38,15 @@ export interface SimulationResult {
   experimentStatus: Experiment['status'] | 'No match'
   audienceMatched: boolean
   assignedVariant: Variant | null
+  assignmentState: AssignmentState
   audienceRuleResults: AudienceRuleMatchResult[]
   notes: string[]
+}
+
+interface VariantAssignmentResult {
+  variant: Variant | null
+  assignmentState: AssignmentState
+  note: string
 }
 
 const defaultBaseUrl = 'https://simulator.local'
@@ -55,6 +67,7 @@ export const createSimulationRequest = (): SimulationRequestContext => ({
 })
 
 const normalizeValue = (value: string) => value.trim().toLowerCase()
+const normalizeIdentity = (userKey: string) => userKey.trim() || 'anonymous'
 
 const parseUrlPath = (value: string) => {
   const trimmedValue = value.trim()
@@ -167,34 +180,76 @@ const hashValue = (value: string) => {
   return hash
 }
 
-const assignVariant = (experiment: Experiment, request: SimulationRequestContext) => {
-  if (experiment.variants.length === 0) {
-    return {
-      variant: null,
-      note: 'No variants are configured for this experiment.',
-    }
-  }
-
-  const identitySeed = `${request.userKey.trim()}|${request.sessionId.trim()}|${experiment.id}`
-  const bucket = hashValue(identitySeed || `anonymous|${experiment.id}`) % 100
+const pickWeightedVariant = (experiment: Experiment, userKey: string) => {
+  const identitySeed = `${normalizeIdentity(userKey)}|${experiment.id}`
+  const bucket = hashValue(identitySeed) % 100
   let cumulativeAllocation = 0
 
   for (const variant of experiment.variants) {
     cumulativeAllocation += variant.allocation
 
     if (bucket < cumulativeAllocation) {
+      return variant
+    }
+  }
+
+  return experiment.variants[experiment.variants.length - 1] ?? null
+}
+
+const assignStickyVariant = (
+  experiment: Experiment,
+  userKey: string,
+): VariantAssignmentResult => {
+  if (experiment.variants.length === 0) {
+    return {
+      variant: null,
+      assignmentState: 'none',
+      note: 'No variants are configured for this experiment.',
+    }
+  }
+
+  const normalizedUserKey = normalizeIdentity(userKey)
+  const storedVariantId = getStickyAssignment(experiment.id, normalizedUserKey)
+
+  if (storedVariantId) {
+    const storedVariant = experiment.variants.find(({ id }) => id === storedVariantId)
+
+    if (storedVariant) {
       return {
-        variant,
-        note: `Assigned ${variant.name} from traffic bucket ${bucket + 1} using stable request identity hashing.`,
+        variant: storedVariant,
+        assignmentState: 'reused',
+        note: `Reused stored assignment for ${normalizedUserKey}.`,
       }
     }
   }
 
-  const fallbackVariant = experiment.variants[experiment.variants.length - 1]
+  const selectedVariant = pickWeightedVariant(experiment, normalizedUserKey)
+
+  if (!selectedVariant) {
+    return {
+      variant: null,
+      assignmentState: 'none',
+      note: 'No variants are available for assignment.',
+    }
+  }
+
+  setStickyAssignment(experiment.id, normalizedUserKey, selectedVariant.id)
 
   return {
-    variant: fallbackVariant,
-    note: `Assigned ${fallbackVariant.name} after falling back to the final allocation bucket.`,
+    variant: selectedVariant,
+    assignmentState: 'newlyCreated',
+    note: `Created and stored a new assignment for ${normalizedUserKey}.`,
+  }
+}
+
+export const formatAssignmentState = (assignmentState: AssignmentState) => {
+  switch (assignmentState) {
+    case 'reused':
+      return 'Reused'
+    case 'newlyCreated':
+      return 'Newly created'
+    case 'none':
+      return 'Not assigned'
   }
 }
 
@@ -213,6 +268,7 @@ export const simulateExperimentDecision = (
       experimentStatus: 'No match',
       audienceMatched: false,
       assignedVariant: null,
+      assignmentState: 'none',
       audienceRuleResults: [],
       notes: ['No running experiments are available to evaluate.'],
     }
@@ -228,6 +284,7 @@ export const simulateExperimentDecision = (
       experimentStatus: 'No match',
       audienceMatched: false,
       assignedVariant: null,
+      assignmentState: 'none',
       audienceRuleResults: [],
       notes: [
         `No running experiment matched ${parseUrlPath(request.pageUrl)}.`,
@@ -265,13 +322,14 @@ export const simulateExperimentDecision = (
       continue
     }
 
-    const assignment = assignVariant(experiment, request)
+    const assignment = assignStickyVariant(experiment, request.userKey)
 
     return {
       matchedExperiment: experiment,
       experimentStatus: experiment.status,
       audienceMatched: true,
       assignedVariant: assignment.variant,
+      assignmentState: assignment.assignmentState,
       audienceRuleResults: audienceEvaluation.ruleResults,
       notes: [
         `Matched ${experiment.name} on ${formatTargetMatchType(
@@ -290,6 +348,7 @@ export const simulateExperimentDecision = (
     experimentStatus: fallbackEvaluation?.experiment.status ?? targetMatches[0].status,
     audienceMatched: false,
     assignedVariant: null,
+    assignmentState: 'none',
     audienceRuleResults: fallbackEvaluation?.audienceRuleResults ?? [],
     notes: [
       `Target URL matched ${targetMatches.length} running experiment${targetMatches.length === 1 ? '' : 's'}, but no audience fully qualified.`,
