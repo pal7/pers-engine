@@ -22,7 +22,11 @@ import {
 } from '../lib/experiments'
 import { workbenchTabs } from '../lib/workbench'
 import type { WorkbenchTab } from '../lib/workbench'
-import type { ExperimentDraft, ExperimentStatus } from '../types/experiment'
+import type {
+  ExperimentDraft,
+  ExperimentDraftVariant,
+  ExperimentStatus,
+} from '../types/experiment'
 
 export function PersonalizationWorkbench() {
   const [experiments, setExperiments] = useState(() => loadExperiments(mockExperiments))
@@ -63,10 +67,10 @@ export function PersonalizationWorkbench() {
     }))
   }
 
-  const updateBuilderVariant = (
+  const updateBuilderVariant = <K extends keyof Omit<ExperimentDraftVariant, 'id' | 'name'>>(
     variantId: string,
-    field: 'headline' | 'ctaText' | 'theme' | 'notes',
-    value: string,
+    field: K,
+    value: ExperimentDraftVariant[K],
   ) => {
     setBuilderDraft((current) => ({
       ...current,

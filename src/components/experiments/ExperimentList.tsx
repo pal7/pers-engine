@@ -1,4 +1,5 @@
 import { formatPercent, formatSignedPercent } from '../../lib/formatters'
+import { formatExperimentStatus } from '../../lib/experiments'
 import type { Experiment, ExperimentStatus } from '../../types/experiment'
 
 interface ExperimentListProps {
@@ -13,10 +14,10 @@ interface ExperimentListProps {
 
 const statusOptions: Array<'All' | ExperimentStatus> = [
   'All',
-  'Draft',
-  'Running',
-  'Paused',
-  'Completed',
+  'draft',
+  'running',
+  'paused',
+  'completed',
 ]
 
 export function ExperimentList({
@@ -30,8 +31,7 @@ export function ExperimentList({
 }: ExperimentListProps) {
   const normalizedSearch = search.trim().toLowerCase()
   const filteredExperiments = experiments.filter((experiment) => {
-    const matchesStatus =
-      statusFilter === 'All' || experiment.status === statusFilter
+    const matchesStatus = statusFilter === 'All' || experiment.status === statusFilter
     const matchesSearch =
       normalizedSearch.length === 0 ||
       [
@@ -76,7 +76,7 @@ export function ExperimentList({
         >
           {statusOptions.map((status) => (
             <option key={status} value={status}>
-              {status}
+              {status === 'All' ? status : formatExperimentStatus(status)}
             </option>
           ))}
         </select>
@@ -95,8 +95,8 @@ export function ExperimentList({
             >
               <div className="experiment-list__title-row">
                 <strong>{experiment.name}</strong>
-                <span className={`badge badge--${experiment.status.toLowerCase()}`}>
-                  {experiment.status}
+                <span className={`badge badge--${experiment.status}`}>
+                  {formatExperimentStatus(experiment.status)}
                 </span>
               </div>
 

@@ -1,8 +1,12 @@
-import { formatTargetMatchType } from './experiments'
+import {
+  formatExperimentStatus,
+  formatTargetMatchType,
+} from './experiments'
 import {
   getStickyAssignment,
   setStickyAssignment,
 } from './stickyAssignments'
+import { getVariantWeightDistribution } from './variantWeights'
 import type { Audience, AudienceRule, Experiment, Variant } from '../types/experiment'
 
 export type SimulatorDevice = 'desktop' | 'mobile' | 'tablet'
@@ -35,7 +39,7 @@ export interface AudienceMatchResult {
 
 export interface SimulationResult {
   matchedExperiment: Experiment | null
-  experimentStatus: Experiment['status'] | 'No match'
+  experimentStatus: Experiment['status'] | 'noMatch'
   audienceMatched: boolean
   assignedVariant: Variant | null
   assignmentState: AssignmentState
@@ -181,19 +185,38 @@ const hashValue = (value: string) => {
 }
 
 const pickWeightedVariant = (experiment: Experiment, userKey: string) => {
-  const identitySeed = `${normalizeIdentity(userKey)}|${experiment.id}`
-  const bucket = hashValue(identitySeed) % 100
-  let cumulativeAllocation = 0
+  const distribution = getVariantWeightDistribution(experiment.variants)
 
-  for (const variant of experiment.variants) {
-    cumulativeAllocation += variant.allocation
-
-    if (bucket < cumulativeAllocation) {
-      return variant
+  if (distribution.normalizedWeights.length === 0) {
+    return {
+      variant: null,
+      note: distribution.note,
     }
   }
 
-  return experiment.variants[experiment.variants.length - 1] ?? null
+  const identitySeed = `${normalizeIdentity(userKey)}|${experiment.id}`
+  const bucket = (hashValue(identitySeed) % 10000) / 10000
+  let cumulativeWeight = 0
+
+  for (const [index, variant] of experiment.variants.entries()) {
+    cumulativeWeight += distribution.normalizedWeights[index] ?? 0
+
+    if (bucket < cumulativeWeight) {
+      return {
+        variant,
+        note: distribution.isValid
+          ? 'Assigned a new variant using normalized variant weights.'
+          : distribution.note,
+      }
+    }
+  }
+
+  return {
+    variant: experiment.variants[experiment.variants.length - 1] ?? null,
+    note: distribution.isValid
+      ? 'Assigned a new variant using normalized variant weights.'
+      : distribution.note,
+  }
 }
 
 const assignStickyVariant = (
@@ -223,22 +246,22 @@ const assignStickyVariant = (
     }
   }
 
-  const selectedVariant = pickWeightedVariant(experiment, normalizedUserKey)
+  const weightedSelection = pickWeightedVariant(experiment, normalizedUserKey)
 
-  if (!selectedVariant) {
+  if (!weightedSelection.variant) {
     return {
       variant: null,
       assignmentState: 'none',
-      note: 'No variants are available for assignment.',
+      note: weightedSelection.note,
     }
   }
 
-  setStickyAssignment(experiment.id, normalizedUserKey, selectedVariant.id)
+  setStickyAssignment(experiment.id, normalizedUserKey, weightedSelection.variant.id)
 
   return {
-    variant: selectedVariant,
+    variant: weightedSelection.variant,
     assignmentState: 'newlyCreated',
-    note: `Created and stored a new assignment for ${normalizedUserKey}.`,
+    note: `${weightedSelection.note} Created and stored a new assignment for ${normalizedUserKey}.`,
   }
 }
 
@@ -258,14 +281,17 @@ export const simulateExperimentDecision = (
   audiences: Audience[],
   request: SimulationRequestContext,
 ): SimulationResult => {
+  const urlMatchedExperiments = experiments.filter((experiment) =>
+    matchesTargetUrl(experiment, request),
+  )
   const runningExperiments = experiments.filter(
-    (experiment) => experiment.status === 'Running',
+    (experiment) => experiment.status === 'running',
   )
 
   if (runningExperiments.length === 0) {
     return {
       matchedExperiment: null,
-      experimentStatus: 'No match',
+      experimentStatus: 'noMatch',
       audienceMatched: false,
       assignedVariant: null,
       assignmentState: 'none',
@@ -279,16 +305,35 @@ export const simulateExperimentDecision = (
   )
 
   if (targetMatches.length === 0) {
+    if (urlMatchedExperiments.length > 0) {
+      return {
+        matchedExperiment: null,
+        experimentStatus: 'noMatch',
+        audienceMatched: false,
+        assignedVariant: null,
+        assignmentState: 'none',
+        audienceRuleResults: [],
+        notes: [
+          `Matched ${parseUrlPath(request.pageUrl)} by URL, but every candidate was ignored because of status.`,
+          ...urlMatchedExperiments.map(
+            (experiment) =>
+              `${experiment.name} is ${formatExperimentStatus(experiment.status)} and not eligible for delivery.`,
+          ),
+          'Only running experiments are eligible for matching and assignment.',
+        ],
+      }
+    }
+
     return {
       matchedExperiment: null,
-      experimentStatus: 'No match',
+      experimentStatus: 'noMatch',
       audienceMatched: false,
       assignedVariant: null,
       assignmentState: 'none',
       audienceRuleResults: [],
       notes: [
-        `No running experiment matched ${parseUrlPath(request.pageUrl)}.`,
-        'The simulator only evaluates experiments with status Running.',
+        `No experiment matched ${parseUrlPath(request.pageUrl)}.`,
+        'Only running experiments are eligible for matching and assignment.',
       ],
     }
   }
@@ -345,7 +390,8 @@ export const simulateExperimentDecision = (
 
   return {
     matchedExperiment: fallbackEvaluation?.experiment ?? targetMatches[0],
-    experimentStatus: fallbackEvaluation?.experiment.status ?? targetMatches[0].status,
+    experimentStatus:
+      fallbackEvaluation?.experiment.status ?? targetMatches[0].status,
     audienceMatched: false,
     assignedVariant: null,
     assignmentState: 'none',

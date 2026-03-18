@@ -8,7 +8,7 @@ interface StatsCardsProps {
 export function StatsCards({ experiments }: StatsCardsProps) {
   const totalExperiments = experiments.length
   const activeExperiments = experiments.filter(
-    ({ status }) => status === 'Running',
+    ({ status }) => status === 'running',
   ).length
   const winningExperiments = experiments.filter(
     ({ results }) => results.lift > 0,

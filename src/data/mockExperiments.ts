@@ -8,7 +8,7 @@ export const mockExperiments: Experiment[] = [
     targetMatchType: 'exact',
     targetUrlPattern: '/',
     audienceName: 'Ecommerce growth prospects',
-    status: 'Running',
+    status: 'running',
     type: 'Personalization',
     hypothesis:
       'Showing ecommerce-specific proof points on the homepage will increase demo request conversion for new prospects.',
@@ -89,7 +89,7 @@ export const mockExperiments: Experiment[] = [
     targetMatchType: 'exact',
     targetUrlPattern: '/pricing',
     audienceName: 'High-intent pricing visitors',
-    status: 'Running',
+    status: 'running',
     type: 'A/B Test',
     hypothesis:
       'Adding customer proof directly above plan cards will increase trial start rate for high-intent visitors.',
@@ -170,7 +170,7 @@ export const mockExperiments: Experiment[] = [
     targetMatchType: 'startsWith',
     targetUrlPattern: '/signup',
     audienceName: 'Enterprise evaluators',
-    status: 'Completed',
+    status: 'completed',
     type: 'Feature Experiment',
     hypothesis:
       'Guiding enterprise evaluators into a role-based signup flow will improve qualified demo conversion.',
@@ -263,4 +263,5 @@ export const mockExperiments: Experiment[] = [
     ],
   },
 ]
+
 

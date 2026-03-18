@@ -1,4 +1,4 @@
-export type ExperimentStatus = 'Draft' | 'Running' | 'Paused' | 'Completed'
+export type ExperimentStatus = 'draft' | 'running' | 'paused' | 'completed'
 
 export type ExperimentType =
   | 'A/B Test'

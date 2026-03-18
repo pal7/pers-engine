@@ -1,4 +1,8 @@
 import { formatPercent, formatSignedPercent } from './formatters'
+import {
+  buildWeightedAllocations,
+  getVariantWeightDistribution,
+} from './variantWeights'
 import type {
   Audience,
   Experiment,
@@ -23,6 +27,7 @@ const defaultBuilderVariants: ExperimentDraftVariant[] = [
   {
     id: 'control',
     name: 'Control',
+    weight: 50,
     headline: 'Personalization that scales',
     ctaText: 'Book a demo',
     theme: 'Core brand',
@@ -31,6 +36,7 @@ const defaultBuilderVariants: ExperimentDraftVariant[] = [
   {
     id: 'variant-a',
     name: 'Variant A',
+    weight: 50,
     headline: 'Personalization for priority audiences',
     ctaText: 'See personalized experience',
     theme: 'Audience-specific treatment',
@@ -39,10 +45,10 @@ const defaultBuilderVariants: ExperimentDraftVariant[] = [
 ]
 
 const experimentStatuses: ExperimentStatus[] = [
-  'Draft',
-  'Running',
-  'Paused',
-  'Completed',
+  'draft',
+  'running',
+  'paused',
+  'completed',
 ]
 const experimentTypes: ExperimentType[] = [
   'A/B Test',
@@ -65,7 +71,9 @@ const isVariantConfig = (value: unknown): value is Variant['config'] =>
   isString(value.placement) &&
   isString(value.theme)
 
-const isVariant = (value: unknown): value is Variant =>
+type StoredVariantBase = Omit<Variant, 'weight'>
+
+const isStoredVariantBase = (value: unknown): value is StoredVariantBase =>
   isObject(value) &&
   isString(value.id) &&
   isString(value.name) &&
@@ -75,6 +83,26 @@ const isVariant = (value: unknown): value is Variant =>
   isString(value.description) &&
   typeof value.isControl === 'boolean' &&
   isVariantConfig(value.config)
+
+const normalizeStoredVariant = (value: unknown): Variant | null => {
+  if (!isStoredVariantBase(value)) {
+    return null
+  }
+
+  const storedVariant = value as StoredVariantBase & {
+    weight?: unknown
+  }
+
+  return {
+    ...storedVariant,
+    weight:
+      isNumber(storedVariant.weight) && storedVariant.weight > 0
+        ? storedVariant.weight
+        : storedVariant.allocation > 0
+          ? storedVariant.allocation
+          : 1,
+  }
+}
 
 const isSegmentPerformancePoint = (
   value: unknown,
@@ -94,56 +122,93 @@ const isMetricTrendPoint = (
 const isTargetMatchType = (value: unknown): value is TargetMatchType =>
   targetMatchTypes.includes(value as TargetMatchType)
 
-type StoredExperimentBase = Omit<Experiment, 'targetMatchType' | 'targetUrlPattern'>
-
-const isStoredExperimentBase = (value: unknown): value is StoredExperimentBase =>
-  isObject(value) &&
-  isString(value.id) &&
-  isString(value.name) &&
-  isString(value.page) &&
-  isString(value.audienceName) &&
-  isString(value.hypothesis) &&
-  isString(value.primaryMetric) &&
-  isString(value.owner) &&
-  isString(value.audienceId) &&
-  isString(value.startDate) &&
-  isString(value.endDate) &&
-  experimentStatuses.includes(value.status as ExperimentStatus) &&
-  experimentTypes.includes(value.type as ExperimentType) &&
-  Array.isArray(value.variants) &&
-  value.variants.every(isVariant) &&
-  isObject(value.results) &&
-  isNumber(value.results.conversionRate) &&
-  isNumber(value.results.lift) &&
-  isNumber(value.results.confidence) &&
-  isNumber(value.results.revenueImpact) &&
-  Array.isArray(value.segmentPerformance) &&
-  value.segmentPerformance.every(isSegmentPerformancePoint) &&
-  Array.isArray(value.metricTrend) &&
-  value.metricTrend.every(isMetricTrendPoint)
-
-const normalizeStoredExperiment = (value: unknown): Experiment | null => {
-  if (!isStoredExperimentBase(value)) {
+export const normalizeExperimentStatus = (
+  value: unknown,
+): ExperimentStatus | null => {
+  if (!isString(value)) {
     return null
   }
 
-  const storedExperiment = value as StoredExperimentBase & {
-    targetMatchType?: unknown
-    targetUrlPattern?: unknown
+  const normalizedValue = value.trim().toLowerCase()
+
+  return experimentStatuses.includes(normalizedValue as ExperimentStatus)
+    ? (normalizedValue as ExperimentStatus)
+    : null
+}
+
+export const formatExperimentStatus = (status: ExperimentStatus) =>
+  status.charAt(0).toUpperCase() + status.slice(1)
+
+const normalizeStoredExperiment = (value: unknown): Experiment | null => {
+  if (!isObject(value)) {
+    return null
   }
-  const targetMatchType = isTargetMatchType(storedExperiment.targetMatchType)
-    ? storedExperiment.targetMatchType
+
+  const normalizedVariants = Array.isArray(value.variants)
+    ? value.variants.map(normalizeStoredVariant)
+    : []
+  const normalizedStatus = normalizeExperimentStatus(value.status)
+
+  if (
+    !isString(value.id) ||
+    !isString(value.name) ||
+    !isString(value.page) ||
+    !isString(value.audienceName) ||
+    !isString(value.hypothesis) ||
+    !isString(value.primaryMetric) ||
+    !isString(value.owner) ||
+    !isString(value.audienceId) ||
+    !isString(value.startDate) ||
+    !isString(value.endDate) ||
+    normalizedStatus === null ||
+    !experimentTypes.includes(value.type as ExperimentType) ||
+    normalizedVariants.length === 0 ||
+    normalizedVariants.some((variant) => variant === null) ||
+    !isObject(value.results) ||
+    !isNumber(value.results.conversionRate) ||
+    !isNumber(value.results.lift) ||
+    !isNumber(value.results.confidence) ||
+    !isNumber(value.results.revenueImpact) ||
+    !Array.isArray(value.segmentPerformance) ||
+    !value.segmentPerformance.every(isSegmentPerformancePoint) ||
+    !Array.isArray(value.metricTrend) ||
+    !value.metricTrend.every(isMetricTrendPoint)
+  ) {
+    return null
+  }
+
+  const targetMatchType = isTargetMatchType(value.targetMatchType)
+    ? value.targetMatchType
     : 'exact'
   const targetUrlPattern =
-    isString(storedExperiment.targetUrlPattern) &&
-    storedExperiment.targetUrlPattern.trim().length > 0
-      ? storedExperiment.targetUrlPattern
-      : storedExperiment.page
+    isString(value.targetUrlPattern) && value.targetUrlPattern.trim().length > 0
+      ? value.targetUrlPattern
+      : value.page
 
   return {
-    ...storedExperiment,
+    id: value.id,
+    name: value.name,
+    page: value.page,
     targetMatchType,
     targetUrlPattern,
+    audienceName: value.audienceName,
+    status: normalizedStatus,
+    type: value.type as ExperimentType,
+    hypothesis: value.hypothesis,
+    primaryMetric: value.primaryMetric,
+    owner: value.owner,
+    audienceId: value.audienceId,
+    startDate: value.startDate,
+    endDate: value.endDate,
+    variants: normalizedVariants.filter((variant): variant is Variant => variant !== null),
+    results: {
+      conversionRate: value.results.conversionRate,
+      lift: value.results.lift,
+      confidence: value.results.confidence,
+      revenueImpact: value.results.revenueImpact,
+    },
+    segmentPerformance: value.segmentPerformance,
+    metricTrend: value.metricTrend,
   }
 }
 
@@ -200,7 +265,7 @@ export const createExperimentDraft = (
   primaryMetric: '',
   audienceId: audiences[0]?.id ?? '',
   trafficAllocation: 100,
-  status: 'Draft',
+  status: 'draft',
   variants: defaultBuilderVariants.map((variant) => ({ ...variant })),
 })
 
@@ -248,10 +313,13 @@ export const buildExperimentFromDraft = (
 ): Experiment => {
   const experimentId = createExperimentId(draft.experimentName)
   const selectedAudience = audiences.find(({ id }) => id === draft.audienceId)
-  const controlAllocation = Math.floor(draft.trafficAllocation / 2)
-  const variantAllocation = draft.trafficAllocation - controlAllocation
   const today = new Date().toISOString().slice(0, 10)
   const targetUrlPattern = draft.targetUrlPattern.trim() || '/'
+  const weightDistribution = getVariantWeightDistribution(draft.variants)
+  const allocations = buildWeightedAllocations(
+    draft.trafficAllocation,
+    weightDistribution.normalizedWeights,
+  )
 
   return {
     id: experimentId,
@@ -262,7 +330,9 @@ export const buildExperimentFromDraft = (
     audienceName: selectedAudience?.name ?? 'Unassigned audience',
     status: draft.status,
     type: draft.experimentType,
-    hypothesis: 'New builder draft experiment.',
+    hypothesis: weightDistribution.isValid
+      ? 'New builder draft experiment.'
+      : 'New builder draft experiment using fallback even variant weighting.',
     primaryMetric: draft.primaryMetric.trim() || 'Primary conversion',
     owner: 'Builder user',
     audienceId: draft.audienceId,
@@ -271,7 +341,8 @@ export const buildExperimentFromDraft = (
     variants: draft.variants.map((variant, index) => ({
       id: createVariantId(experimentId, variant.id),
       name: variant.name,
-      allocation: index === 0 ? controlAllocation : variantAllocation,
+      allocation: allocations[index] ?? 0,
+      weight: variant.weight,
       visitors: 0,
       conversions: 0,
       description: variant.notes.trim() || `${variant.name} draft configuration.`,
@@ -342,4 +413,3 @@ export const buildResultsDecisionSummary = (
           : 'Hold rollout and collect more traffic before making a launch decision.',
   }
 }
-

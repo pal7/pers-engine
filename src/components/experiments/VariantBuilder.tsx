@@ -1,3 +1,4 @@
+import { getVariantWeightDistribution } from '../../lib/variantWeights'
 import type { ExperimentDraftVariant } from '../../types/experiment'
 
 interface VariantBuilderProps {
@@ -5,7 +6,7 @@ interface VariantBuilderProps {
   onVariantChange: (
     variantId: string,
     field: keyof Omit<ExperimentDraftVariant, 'id' | 'name'>,
-    value: string,
+    value: string | number,
   ) => void
 }
 
@@ -13,6 +14,8 @@ export function VariantBuilder({
   variants,
   onVariantChange,
 }: VariantBuilderProps) {
+  const weightDistribution = getVariantWeightDistribution(variants)
+
   return (
     <section className="panel">
       <div className="panel__header">
@@ -26,6 +29,10 @@ export function VariantBuilder({
         These fields represent content and treatment config only. Rendering logic stays out of the frontend MVP.
       </div>
 
+      {!weightDistribution.isValid ? (
+        <div className="variant-builder__warning">{weightDistribution.note}</div>
+      ) : null}
+
       <div className="variant-builder__grid">
         {variants.map((variant) => (
           <article className="variant-builder__card" key={variant.id}>
@@ -35,6 +42,33 @@ export function VariantBuilder({
             </div>
 
             <div className="form-grid">
+              <label className="field">
+                <span>Weight</span>
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    onVariantChange(
+                      variant.id,
+                      'weight',
+                      Number(event.target.value) || 0,
+                    )
+                  }
+                  type="number"
+                  value={variant.weight}
+                />
+              </label>
+
+              <div className="field">
+                <span>Normalized share</span>
+                <input
+                  disabled
+                  type="text"
+                  value={`${Math.round(
+                    (weightDistribution.normalizedWeights[variants.indexOf(variant)] ?? 0) * 100,
+                  )}%`}
+                />
+              </div>
+
               <label className="field field--full">
                 <span>Headline</span>
                 <input

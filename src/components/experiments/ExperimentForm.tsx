@@ -5,7 +5,10 @@ import type {
   ExperimentType,
   TargetMatchType,
 } from '../../types/experiment'
-import { formatTargetMatchType } from '../../lib/experiments'
+import {
+  formatExperimentStatus,
+  formatTargetMatchType,
+} from '../../lib/experiments'
 
 interface ExperimentFormProps {
   audiences: Audience[]
@@ -23,10 +26,10 @@ const experimentTypeOptions: ExperimentType[] = [
   'Personalization',
 ]
 const experimentStatusOptions: ExperimentStatus[] = [
-  'Draft',
-  'Running',
-  'Paused',
-  'Completed',
+  'draft',
+  'running',
+  'paused',
+  'completed',
 ]
 const targetMatchOptions: TargetMatchType[] = ['exact', 'startsWith']
 
@@ -115,7 +118,7 @@ export function ExperimentForm({
           >
             {experimentStatusOptions.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {formatExperimentStatus(option)}
               </option>
             ))}
           </select>

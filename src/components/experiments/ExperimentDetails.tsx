@@ -1,5 +1,6 @@
 import { formatNumber, formatPercent } from '../../lib/formatters'
 import {
+  formatExperimentStatus,
   formatTargetMatchType,
   getLaunchReadinessLabel,
   getVariantConversionRate,
@@ -24,6 +25,9 @@ export function ExperimentDetails({ experiment }: ExperimentDetailsProps) {
           <h2>Experiment details</h2>
           <p>Ownership, rollout signal, and side-by-side variant performance.</p>
         </div>
+        <span className={`badge badge--${experiment.status}`}>
+          {formatExperimentStatus(experiment.status)}
+        </span>
       </div>
 
       <div className="experiment-details__summary">
@@ -32,6 +36,10 @@ export function ExperimentDetails({ experiment }: ExperimentDetailsProps) {
             <div>
               <span className="label">Owner</span>
               <p>{experiment.owner}</p>
+            </div>
+            <div>
+              <span className="label">Status</span>
+              <p>{formatExperimentStatus(experiment.status)}</p>
             </div>
             <div>
               <span className="label">Audience</span>
@@ -100,6 +108,10 @@ export function ExperimentDetails({ experiment }: ExperimentDetailsProps) {
             </div>
 
             <div className="experiment-details__config">
+              <div>
+                <span className="label">Weight</span>
+                <p>{variant.weight}</p>
+              </div>
               <div>
                 <span className="label">Headline</span>
                 <p>{variant.config.headline}</p>
