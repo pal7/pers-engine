@@ -790,6 +790,33 @@ strong {
   gap: 12px;
 }
 
+.simulator-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.simulator-result__secondary-action {
+  background: var(--neutral-soft);
+  color: #334155;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.simulator-result__action-copy {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.simulator-result__summary--compact {
+  margin-bottom: 0;
+}
+
 .simulator-result__note p {
   color: var(--text-muted);
   line-height: 1.55;
@@ -841,6 +868,7 @@ strong {
     width: 100%;
   }
 }
+
 
 
 

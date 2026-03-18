@@ -7,6 +7,8 @@ export type ExperimentType =
 
 export type TargetMatchType = 'exact' | 'startsWith'
 
+export type ExperimentEventType = 'impression' | 'conversion'
+
 export interface VariantConfig {
   headline: string
   bodyCopy: string
@@ -68,6 +70,18 @@ export interface SegmentPerformancePoint {
 export interface MetricTrendPoint {
   date: string
   value: number
+}
+
+export interface ExperimentEvent {
+  id: string
+  experimentId: string
+  variantId: string
+  variantName: string
+  userKey: string
+  sessionId: string
+  eventType: ExperimentEventType
+  pageUrl: string
+  timestamp: string
 }
 
 export interface Experiment {

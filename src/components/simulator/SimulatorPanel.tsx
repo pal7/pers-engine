@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import { formatExperimentStatus } from '../../lib/experiments'
+import {
+  getExperimentEventsForContext,
+} from '../../lib/simulatorEvents'
 import {
   createSimulationRequest,
   formatAssignmentState,
@@ -7,19 +11,42 @@ import {
 } from '../../lib/simulator'
 import type {
   SimulationRequestContext,
+  SimulationResult,
   SimulatorDevice,
 } from '../../lib/simulator'
-import type { Audience, Experiment } from '../../types/experiment'
+import type {
+  Audience,
+  Experiment,
+  ExperimentEvent,
+  ExperimentEventType,
+} from '../../types/experiment'
+
+interface EventTrackResult {
+  ok: boolean
+  message: string
+}
 
 interface SimulatorPanelProps {
   experiments: Experiment[]
   audiences: Audience[]
+  events: ExperimentEvent[]
+  onTrackEvent: (input: {
+    eventType: ExperimentEventType
+    request: SimulationRequestContext
+    simulationResult: SimulationResult
+  }) => EventTrackResult
 }
 
-export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) {
+export function SimulatorPanel({
+  experiments,
+  audiences,
+  events,
+  onTrackEvent,
+}: SimulatorPanelProps) {
   const [request, setRequest] = useState<SimulationRequestContext>(() =>
     createSimulationRequest(),
   )
+  const [trackingMessage, setTrackingMessage] = useState('')
   const simulationResult = simulateExperimentDecision(experiments, audiences, request)
 
   const updateRequest = <K extends keyof SimulationRequestContext>(
@@ -30,6 +57,39 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
       ...current,
       [field]: value,
     }))
+  }
+
+  const assignedExperiment = simulationResult.matchedExperiment
+  const assignedVariant = simulationResult.assignedVariant
+  const hasAssignedVariant =
+    assignedExperiment !== null &&
+    assignedVariant !== null &&
+    simulationResult.audienceMatched
+
+  const assignmentEvents = assignedExperiment && assignedVariant && simulationResult.audienceMatched
+    ? getExperimentEventsForContext(events, {
+        experimentId: assignedExperiment.id,
+        variantId: assignedVariant.id,
+        userKey: request.userKey,
+        sessionId: request.sessionId,
+      })
+    : []
+  const impressionCount = assignmentEvents.filter(
+    (event) => event.eventType === 'impression',
+  ).length
+  const conversionCount = assignmentEvents.filter(
+    (event) => event.eventType === 'conversion',
+  ).length
+  const canTrackConversion = hasAssignedVariant && impressionCount > 0
+
+  const handleTrackEvent = (eventType: ExperimentEventType) => {
+    const result = onTrackEvent({
+      eventType,
+      request,
+      simulationResult,
+    })
+
+    setTrackingMessage(result.message)
   }
 
   return (
@@ -130,7 +190,11 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
           </article>
           <article className="simulator-result__card">
             <span className="label">Experiment status</span>
-            <strong>{simulationResult.experimentStatus}</strong>
+            <strong>
+              {simulationResult.experimentStatus === 'noMatch'
+                ? 'No match'
+                : formatExperimentStatus(simulationResult.experimentStatus)}
+            </strong>
           </article>
           <article className="simulator-result__card">
             <span className="label">Audience matched</span>
@@ -145,6 +209,70 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
             <strong>{formatAssignmentState(simulationResult.assignmentState)}</strong>
           </article>
         </div>
+
+        <div className="simulator-result__actions">
+          <button
+            className="button button--primary"
+            disabled={!hasAssignedVariant}
+            onClick={() => handleTrackEvent('impression')}
+            type="button"
+          >
+            Track Impression
+          </button>
+          <button
+            className="button simulator-result__secondary-action"
+            disabled={!canTrackConversion}
+            onClick={() => handleTrackEvent('conversion')}
+            type="button"
+          >
+            Track Conversion
+          </button>
+        </div>
+
+        <p className="simulator-result__action-copy">
+          {hasAssignedVariant
+            ? canTrackConversion
+              ? 'This assignment can record both impression and conversion events.'
+              : 'Track an impression before recording a conversion event.'
+            : 'Event tracking is available only after a running experiment assigns a valid variant.'}
+        </p>
+
+        {trackingMessage ? <p className="simulator-result__action-copy">{trackingMessage}</p> : null}
+
+        {hasAssignedVariant ? (
+          <div className="simulator-result__notes">
+            <span className="label">Tracked events for this assignment</span>
+            <div className="simulator-result__summary simulator-result__summary--compact">
+              <article className="simulator-result__card">
+                <span className="label">Impressions</span>
+                <strong>{String(impressionCount)}</strong>
+              </article>
+              <article className="simulator-result__card">
+                <span className="label">Conversions</span>
+                <strong>{String(conversionCount)}</strong>
+              </article>
+            </div>
+            {assignmentEvents.length > 0 ? (
+              <div className="stack">
+                {assignmentEvents.slice(0, 5).map((event) => (
+                  <article className="simulator-result__note" key={event.id}>
+                    <div className="simulator-result__note-header">
+                      <strong>{event.variantName}</strong>
+                      <span className={`badge badge--${event.eventType === 'conversion' ? 'completed' : 'running'}`}>
+                        {event.eventType}
+                      </span>
+                    </div>
+                    <p>{`${event.pageUrl} at ${event.timestamp}`}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <article className="simulator-result__note">
+                <p>No events tracked yet for this assigned variant.</p>
+              </article>
+            )}
+          </div>
+        ) : null}
 
         {simulationResult.audienceRuleResults.length > 0 ? (
           <div className="simulator-result__notes">
@@ -179,3 +307,4 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
     </div>
   )
 }
+

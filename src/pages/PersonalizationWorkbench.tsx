@@ -17,19 +17,37 @@ import {
   buildExperimentFromDraft,
   buildResultsDecisionSummary,
   createExperimentDraft,
+  formatExperimentStatus,
   loadExperiments,
   saveExperiments,
 } from '../lib/experiments'
+import {
+  createExperimentEvent,
+  hasTrackedImpression,
+  loadExperimentEvents,
+  saveExperimentEvents,
+} from '../lib/simulatorEvents'
+import type { SimulationRequestContext, SimulationResult } from '../lib/simulator'
 import { workbenchTabs } from '../lib/workbench'
 import type { WorkbenchTab } from '../lib/workbench'
 import type {
   ExperimentDraft,
   ExperimentDraftVariant,
+  ExperimentEvent,
+  ExperimentEventType,
   ExperimentStatus,
 } from '../types/experiment'
 
+interface EventTrackResult {
+  ok: boolean
+  message: string
+}
+
 export function PersonalizationWorkbench() {
   const [experiments, setExperiments] = useState(() => loadExperiments(mockExperiments))
+  const [experimentEvents, setExperimentEvents] = useState<ExperimentEvent[]>(() =>
+    loadExperimentEvents(),
+  )
   const defaultExperiment = experiments[0]
   const [activeTab, setActiveTab] = useState<WorkbenchTab>('Overview')
   const [selectedExperimentId, setSelectedExperimentId] = useState(
@@ -44,6 +62,10 @@ export function PersonalizationWorkbench() {
   useEffect(() => {
     saveExperiments(experiments)
   }, [experiments])
+
+  useEffect(() => {
+    saveExperimentEvents(experimentEvents)
+  }, [experimentEvents])
 
   const selectedExperiment =
     experiments.find(({ id }) => id === selectedExperimentId) ?? defaultExperiment
@@ -94,6 +116,57 @@ export function PersonalizationWorkbench() {
     setStatusFilter('All')
     setActiveTab('Experiments')
     setBuilderDraft(createExperimentDraft(mockAudiences))
+  }
+
+  const handleTrackSimulatorEvent = ({
+    eventType,
+    request,
+    simulationResult,
+  }: {
+    eventType: ExperimentEventType
+    request: SimulationRequestContext
+    simulationResult: SimulationResult
+  }): EventTrackResult => {
+    const experiment = simulationResult.matchedExperiment
+    const variant = simulationResult.assignedVariant
+
+    if (!experiment || !variant || !simulationResult.audienceMatched) {
+      return {
+        ok: false,
+        message: 'Track events only after a running experiment assigns a valid variant.',
+      }
+    }
+
+    if (
+      eventType === 'conversion' &&
+      !hasTrackedImpression(experimentEvents, {
+        experimentId: experiment.id,
+        variantId: variant.id,
+        userKey: request.userKey,
+        sessionId: request.sessionId,
+      })
+    ) {
+      return {
+        ok: false,
+        message: 'Track an impression before recording a conversion for this assignment.',
+      }
+    }
+
+    const newEvent = createExperimentEvent({
+      experimentId: experiment.id,
+      variant,
+      userKey: request.userKey,
+      sessionId: request.sessionId,
+      eventType,
+      pageUrl: request.pageUrl,
+    })
+
+    setExperimentEvents((current) => [newEvent, ...current])
+
+    return {
+      ok: true,
+      message: `Tracked ${eventType} for ${variant.name} in ${experiment.name}.`,
+    }
   }
 
   const tabContent = {
@@ -153,14 +226,23 @@ export function PersonalizationWorkbench() {
         segmentPerformance={selectedExperiment.segmentPerformance}
       />
     ),
-    Simulator: <SimulatorPanel audiences={mockAudiences} experiments={experiments} />,
+    Simulator: (
+      <SimulatorPanel
+        audiences={mockAudiences}
+        events={experimentEvents}
+        experiments={experiments}
+        onTrackEvent={handleTrackSimulatorEvent}
+      />
+    ),
   } satisfies Record<WorkbenchTab, ReactNode>
 
   return (
     <AppShell
       primaryActions={
         <>
-          <span className="badge badge--neutral">{selectedExperiment.status}</span>
+          <span className={`badge badge--${selectedExperiment.status}`}>
+            {formatExperimentStatus(selectedExperiment.status)}
+          </span>
           <button
             className="button button--primary"
             onClick={() => setActiveTab('Builder')}
