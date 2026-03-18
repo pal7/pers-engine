@@ -6,6 +6,7 @@ import type {
   ExperimentDraftVariant,
   ExperimentStatus,
   ExperimentType,
+  TargetMatchType,
   Variant,
 } from '../types/experiment'
 
@@ -48,6 +49,7 @@ const experimentTypes: ExperimentType[] = [
   'Feature Experiment',
   'Personalization',
 ]
+const targetMatchTypes: TargetMatchType[] = ['exact', 'startsWith']
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -89,7 +91,12 @@ const isMetricTrendPoint = (
 ): value is Experiment['metricTrend'][number] =>
   isObject(value) && isString(value.date) && isNumber(value.value)
 
-const isExperiment = (value: unknown): value is Experiment =>
+const isTargetMatchType = (value: unknown): value is TargetMatchType =>
+  targetMatchTypes.includes(value as TargetMatchType)
+
+type StoredExperimentBase = Omit<Experiment, 'targetMatchType' | 'targetUrlPattern'>
+
+const isStoredExperimentBase = (value: unknown): value is StoredExperimentBase =>
   isObject(value) &&
   isString(value.id) &&
   isString(value.name) &&
@@ -115,9 +122,53 @@ const isExperiment = (value: unknown): value is Experiment =>
   Array.isArray(value.metricTrend) &&
   value.metricTrend.every(isMetricTrendPoint)
 
+const normalizeStoredExperiment = (value: unknown): Experiment | null => {
+  if (!isStoredExperimentBase(value)) {
+    return null
+  }
+
+  const storedExperiment = value as StoredExperimentBase & {
+    targetMatchType?: unknown
+    targetUrlPattern?: unknown
+  }
+  const targetMatchType = isTargetMatchType(storedExperiment.targetMatchType)
+    ? storedExperiment.targetMatchType
+    : 'exact'
+  const targetUrlPattern =
+    isString(storedExperiment.targetUrlPattern) &&
+    storedExperiment.targetUrlPattern.trim().length > 0
+      ? storedExperiment.targetUrlPattern
+      : storedExperiment.page
+
+  return {
+    ...storedExperiment,
+    targetMatchType,
+    targetUrlPattern,
+  }
+}
+
 export const buildExperimentPageUrl = (page: string) => {
   const slug = page.toLowerCase().replace(/\s+/g, '-')
   return `https://app.acme-personalize.com/${slug}`
+}
+
+export const formatTargetMatchType = (matchType: TargetMatchType) =>
+  matchType === 'exact' ? 'Exact path' : 'Starts with'
+
+export const buildExperimentPageLabel = (targetUrlPattern: string) => {
+  const trimmedPattern = targetUrlPattern.trim()
+
+  if (!trimmedPattern) {
+    return '/*'
+  }
+
+  try {
+    const url = new URL(trimmedPattern)
+
+    return url.pathname || '/'
+  } catch {
+    return trimmedPattern
+  }
 }
 
 const createExperimentId = (name: string) => {
@@ -143,7 +194,8 @@ export const createExperimentDraft = (
   audiences: Audience[],
 ): ExperimentDraft => ({
   experimentName: '',
-  pageUrl: '',
+  targetMatchType: 'exact',
+  targetUrlPattern: '',
   experimentType: 'A/B Test',
   primaryMetric: '',
   audienceId: audiences[0]?.id ?? '',
@@ -166,8 +218,14 @@ export const loadExperiments = (fallbackExperiments: Experiment[]): Experiment[]
   try {
     const parsed: unknown = JSON.parse(storedExperiments)
 
-    if (Array.isArray(parsed) && parsed.every(isExperiment)) {
-      return parsed
+    if (!Array.isArray(parsed)) {
+      return fallbackExperiments
+    }
+
+    const normalizedExperiments = parsed.map(normalizeStoredExperiment)
+
+    if (normalizedExperiments.every((experiment) => experiment !== null)) {
+      return normalizedExperiments
     }
   } catch {
     return fallbackExperiments
@@ -193,11 +251,14 @@ export const buildExperimentFromDraft = (
   const controlAllocation = Math.floor(draft.trafficAllocation / 2)
   const variantAllocation = draft.trafficAllocation - controlAllocation
   const today = new Date().toISOString().slice(0, 10)
+  const targetUrlPattern = draft.targetUrlPattern.trim() || '/'
 
   return {
     id: experimentId,
     name: draft.experimentName.trim() || 'Untitled experiment',
-    page: draft.pageUrl.trim() || '/*',
+    page: buildExperimentPageLabel(targetUrlPattern),
+    targetMatchType: draft.targetMatchType,
+    targetUrlPattern,
     audienceName: selectedAudience?.name ?? 'Unassigned audience',
     status: draft.status,
     type: draft.experimentType,
@@ -219,7 +280,7 @@ export const buildExperimentFromDraft = (
         headline: variant.headline.trim(),
         bodyCopy: variant.notes.trim(),
         ctaLabel: variant.ctaText.trim(),
-        placement: draft.pageUrl.trim() || '/*',
+        placement: targetUrlPattern,
         theme: variant.theme.trim(),
       },
     })),
@@ -281,5 +342,4 @@ export const buildResultsDecisionSummary = (
           : 'Hold rollout and collect more traffic before making a launch decision.',
   }
 }
-
 

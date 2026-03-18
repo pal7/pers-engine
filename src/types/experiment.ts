@@ -5,6 +5,8 @@ export type ExperimentType =
   | 'Feature Experiment'
   | 'Personalization'
 
+export type TargetMatchType = 'exact' | 'startsWith'
+
 export interface VariantConfig {
   headline: string
   bodyCopy: string
@@ -73,6 +75,8 @@ export interface Experiment {
   id: string
   name: string
   page: string
+  targetMatchType: TargetMatchType
+  targetUrlPattern: string
   audienceName: string
   status: ExperimentStatus
   type: ExperimentType
@@ -95,7 +99,8 @@ export interface Experiment {
 
 export interface ExperimentDraft {
   experimentName: string
-  pageUrl: string
+  targetMatchType: TargetMatchType
+  targetUrlPattern: string
   experimentType: ExperimentType
   primaryMetric: string
   audienceId: string

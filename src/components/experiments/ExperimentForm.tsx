@@ -3,7 +3,9 @@ import type {
   ExperimentDraft,
   ExperimentStatus,
   ExperimentType,
+  TargetMatchType,
 } from '../../types/experiment'
+import { formatTargetMatchType } from '../../lib/experiments'
 
 interface ExperimentFormProps {
   audiences: Audience[]
@@ -26,6 +28,7 @@ const experimentStatusOptions: ExperimentStatus[] = [
   'Paused',
   'Completed',
 ]
+const targetMatchOptions: TargetMatchType[] = ['exact', 'startsWith']
 
 export function ExperimentForm({
   audiences,
@@ -33,6 +36,11 @@ export function ExperimentForm({
   onDraftChange,
   onSaveExperiment,
 }: ExperimentFormProps) {
+  const targetPlaceholder =
+    draft.targetMatchType === 'exact'
+      ? 'https://app.example.com/pricing or /pricing'
+      : 'https://app.example.com/signup or /signup'
+
   return (
     <section className="panel">
       <div className="panel__header">
@@ -52,13 +60,30 @@ export function ExperimentForm({
           />
         </label>
 
-        <label className="field field--full">
-          <span>Page URL or pattern</span>
+        <label className="field">
+          <span>Target match</span>
+          <select
+            className="field__control"
+            onChange={(event) =>
+              onDraftChange('targetMatchType', event.target.value as TargetMatchType)
+            }
+            value={draft.targetMatchType}
+          >
+            {targetMatchOptions.map((option) => (
+              <option key={option} value={option}>
+                {formatTargetMatchType(option)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Target URL or path</span>
           <input
-            onChange={(event) => onDraftChange('pageUrl', event.target.value)}
-            placeholder="https://app.example.com/pricing or /pricing/*"
+            onChange={(event) => onDraftChange('targetUrlPattern', event.target.value)}
+            placeholder={targetPlaceholder}
             type="text"
-            value={draft.pageUrl}
+            value={draft.targetUrlPattern}
           />
         </label>
 

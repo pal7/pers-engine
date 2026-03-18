@@ -1,5 +1,6 @@
 import { formatNumber, formatPercent } from '../../lib/formatters'
 import {
+  formatTargetMatchType,
   getLaunchReadinessLabel,
   getVariantConversionRate,
 } from '../../lib/experiments'
@@ -43,6 +44,14 @@ export function ExperimentDetails({ experiment }: ExperimentDetailsProps) {
             <div>
               <span className="label">Primary metric</span>
               <p>{experiment.primaryMetric}</p>
+            </div>
+            <div>
+              <span className="label">Match type</span>
+              <p>{formatTargetMatchType(experiment.targetMatchType)}</p>
+            </div>
+            <div>
+              <span className="label">Target URL</span>
+              <p>{experiment.targetUrlPattern}</p>
             </div>
           </div>
         </article>
