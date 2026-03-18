@@ -6,6 +6,7 @@ import {
   getStickyAssignment,
   setStickyAssignment,
 } from './stickyAssignments'
+import { matchesExperimentTarget, parseUrlPath } from './urlMatching'
 import { getVariantWeightDistribution } from './variantWeights'
 import type { Audience, AudienceRule, Experiment, Variant } from '../types/experiment'
 
@@ -53,8 +54,6 @@ interface VariantAssignmentResult {
   note: string
 }
 
-const defaultBaseUrl = 'https://simulator.local'
-
 export const simulatorDeviceOptions: SimulatorDevice[] = [
   'desktop',
   'mobile',
@@ -72,20 +71,6 @@ export const createSimulationRequest = (): SimulationRequestContext => ({
 
 const normalizeValue = (value: string) => value.trim().toLowerCase()
 const normalizeIdentity = (userKey: string) => userKey.trim() || 'anonymous'
-
-const parseUrlPath = (value: string) => {
-  const trimmedValue = value.trim()
-
-  if (!trimmedValue) {
-    return '/'
-  }
-
-  try {
-    return new URL(trimmedValue, defaultBaseUrl).pathname || '/'
-  } catch {
-    return trimmedValue.startsWith('/') ? trimmedValue : `/${trimmedValue}`
-  }
-}
 
 const parseListValue = (value: string) =>
   value
@@ -165,14 +150,6 @@ export const evaluateAudienceMatch = (
   }
 }
 
-const matchesTargetUrl = (experiment: Experiment, request: SimulationRequestContext) => {
-  const requestPath = parseUrlPath(request.pageUrl)
-  const targetPath = parseUrlPath(experiment.targetUrlPattern)
-
-  return experiment.targetMatchType === 'exact'
-    ? requestPath === targetPath
-    : requestPath.startsWith(targetPath)
-}
 
 const hashValue = (value: string) => {
   let hash = 0
@@ -282,7 +259,7 @@ export const simulateExperimentDecision = (
   request: SimulationRequestContext,
 ): SimulationResult => {
   const urlMatchedExperiments = experiments.filter((experiment) =>
-    matchesTargetUrl(experiment, request),
+    matchesExperimentTarget(experiment, request.pageUrl),
   )
   const runningExperiments = experiments.filter(
     (experiment) => experiment.status === 'running',
@@ -301,7 +278,7 @@ export const simulateExperimentDecision = (
   }
 
   const targetMatches = runningExperiments.filter((experiment) =>
-    matchesTargetUrl(experiment, request),
+    matchesExperimentTarget(experiment, request.pageUrl),
   )
 
   if (targetMatches.length === 0) {
@@ -402,3 +379,4 @@ export const simulateExperimentDecision = (
     ],
   }
 }
+
