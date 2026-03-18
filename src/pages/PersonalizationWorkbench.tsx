@@ -13,6 +13,7 @@ import { ResultsSummary } from '../components/results/ResultsSummary'
 import { SimulatorPanel } from '../components/simulator/SimulatorPanel'
 import { mockAudiences } from '../data/mockAudiences'
 import { mockExperiments } from '../data/mockExperiments'
+import { buildExperimentWithEventResults } from '../lib/experimentEventResults'
 import {
   buildExperimentFromDraft,
   buildResultsDecisionSummary,
@@ -74,10 +75,14 @@ export function PersonalizationWorkbench() {
     return null
   }
 
-  const selectedAudience = mockAudiences.find(
-    ({ id }) => id === selectedExperiment.audienceId,
+  const selectedExperimentView = buildExperimentWithEventResults(
+    selectedExperiment,
+    experimentEvents,
   )
-  const resultsDecisionSummary = buildResultsDecisionSummary(selectedExperiment)
+  const selectedAudience = mockAudiences.find(
+    ({ id }) => id === selectedExperimentView.audienceId,
+  )
+  const resultsDecisionSummary = buildResultsDecisionSummary(selectedExperimentView)
 
   const updateBuilderDraft = <K extends keyof ExperimentDraft>(
     field: K,
@@ -174,12 +179,12 @@ export function PersonalizationWorkbench() {
       <div className="workbench-section">
         <StatsCards experiments={experiments} />
         <section className="content-grid content-grid--primary">
-          <ExperimentDetails experiment={selectedExperiment} />
+          <ExperimentDetails experiment={selectedExperimentView} />
           <ResultsSummary
             decisionSummary={resultsDecisionSummary}
-            experimentName={selectedExperiment.name}
-            metricTrend={selectedExperiment.metricTrend}
-            segmentPerformance={selectedExperiment.segmentPerformance}
+            experimentName={selectedExperimentView.name}
+            metricTrend={selectedExperimentView.metricTrend}
+            segmentPerformance={selectedExperimentView.segmentPerformance}
           />
         </section>
       </div>
@@ -195,7 +200,7 @@ export function PersonalizationWorkbench() {
           selectedExperimentId={selectedExperiment.id}
           statusFilter={statusFilter}
         />
-        <ExperimentDetails experiment={selectedExperiment} />
+        <ExperimentDetails experiment={selectedExperimentView} />
       </section>
     ),
     Builder: (
@@ -221,9 +226,9 @@ export function PersonalizationWorkbench() {
     Results: (
       <ResultsSummary
         decisionSummary={resultsDecisionSummary}
-        experimentName={selectedExperiment.name}
-        metricTrend={selectedExperiment.metricTrend}
-        segmentPerformance={selectedExperiment.segmentPerformance}
+        experimentName={selectedExperimentView.name}
+        metricTrend={selectedExperimentView.metricTrend}
+        segmentPerformance={selectedExperimentView.segmentPerformance}
       />
     ),
     Simulator: (
@@ -240,8 +245,8 @@ export function PersonalizationWorkbench() {
     <AppShell
       primaryActions={
         <>
-          <span className={`badge badge--${selectedExperiment.status}`}>
-            {formatExperimentStatus(selectedExperiment.status)}
+          <span className={`badge badge--${selectedExperimentView.status}`}>
+            {formatExperimentStatus(selectedExperimentView.status)}
           </span>
           <button
             className="button button--primary"
