@@ -4,6 +4,7 @@ export const workbenchTabs = [
   'Builder',
   'Audiences',
   'Results',
+  'Simulator',
 ] as const
 
 export type WorkbenchTab = (typeof workbenchTabs)[number]

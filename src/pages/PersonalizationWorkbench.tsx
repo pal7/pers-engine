@@ -3,13 +3,14 @@ import type { ReactNode } from 'react'
 import { AudienceLibrary } from '../components/audiences/AudienceLibrary'
 import { AudienceRuleBuilder } from '../components/audiences/AudienceRuleBuilder'
 import { StatsCards } from '../components/dashboard/StatsCards'
-import { AppShell } from '../components/layout/AppShell'
-import { WorkbenchTabs } from '../components/layout/WorkbenchTabs'
 import { ExperimentDetails } from '../components/experiments/ExperimentDetails'
 import { ExperimentForm } from '../components/experiments/ExperimentForm'
 import { ExperimentList } from '../components/experiments/ExperimentList'
 import { VariantBuilder } from '../components/experiments/VariantBuilder'
+import { AppShell } from '../components/layout/AppShell'
+import { WorkbenchTabs } from '../components/layout/WorkbenchTabs'
 import { ResultsSummary } from '../components/results/ResultsSummary'
+import { SimulatorPanel } from '../components/simulator/SimulatorPanel'
 import { mockAudiences } from '../data/mockAudiences'
 import { mockExperiments } from '../data/mockExperiments'
 import {
@@ -41,8 +42,7 @@ export function PersonalizationWorkbench() {
   }, [experiments])
 
   const selectedExperiment =
-    experiments.find(({ id }) => id === selectedExperimentId) ??
-    defaultExperiment
+    experiments.find(({ id }) => id === selectedExperimentId) ?? defaultExperiment
 
   if (!selectedExperiment) {
     return null
@@ -137,10 +137,7 @@ export function PersonalizationWorkbench() {
     ),
     Audiences: (
       <section className="content-grid">
-        <AudienceLibrary
-          audiences={mockAudiences}
-          selectedAudienceId={selectedAudience?.id}
-        />
+        <AudienceLibrary audiences={mockAudiences} selectedAudienceId={selectedAudience?.id} />
         <AudienceRuleBuilder />
       </section>
     ),
@@ -152,6 +149,7 @@ export function PersonalizationWorkbench() {
         segmentPerformance={selectedExperiment.segmentPerformance}
       />
     ),
+    Simulator: <SimulatorPanel audiences={mockAudiences} experiments={experiments} />,
   } satisfies Record<WorkbenchTab, ReactNode>
 
   return (
@@ -171,11 +169,7 @@ export function PersonalizationWorkbench() {
       productName="Personalization Workbench"
       subtitle="Operate experiments, audience targeting, and decision workflows from a single frontend MVP."
     >
-      <WorkbenchTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        tabs={workbenchTabs}
-      />
+      <WorkbenchTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={workbenchTabs} />
       {tabContent[activeTab]}
     </AppShell>
   )

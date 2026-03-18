@@ -743,6 +743,47 @@ strong {
 .audience-rule-builder__add {
   margin-top: 16px;
 }
+
+.simulator-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+}
+
+.simulator-result__summary {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.simulator-result__card,
+.simulator-result__note {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.simulator-result__card {
+  display: grid;
+  gap: 8px;
+}
+
+.simulator-result__card strong {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.simulator-result__notes {
+  display: grid;
+  gap: 12px;
+}
+
+.simulator-result__note p {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
 @media (max-width: 980px) {
   .app-shell {
     padding: 20px 16px 32px;
@@ -751,6 +792,7 @@ strong {
   .app-shell__header,
   .content-grid,
   .content-grid--primary,
+  .simulator-grid,
   .stats-grid,
   .results-grid,
   .details-grid,
@@ -766,7 +808,8 @@ strong {
   .results-summary__layout,
   .results-summary__chart-bars,
   .results-summary__chart-footer,
-  .results-summary__decisions {
+  .results-summary__decisions,
+  .simulator-result__summary {
     grid-template-columns: 1fr;
   }
 
@@ -780,6 +823,8 @@ strong {
     width: 100%;
   }
 }
+
+
 
 
 
