@@ -35,17 +35,14 @@ export interface ExperimentDraftVariant {
   notes: string
 }
 
+export type AudienceRuleField = 'device' | 'country' | 'isReturningUser' | 'pageUrl'
+
+export type AudienceRuleOperator = 'equals' | 'notEquals' | 'contains' | 'in'
+
 export interface AudienceRule {
   id: string
-  field: string
-  operator:
-    | 'is'
-    | 'is not'
-    | 'contains'
-    | 'is one of'
-    | '>='
-    | '<='
-    | 'within'
+  field: AudienceRuleField
+  operator: AudienceRuleOperator
   value: string
 }
 

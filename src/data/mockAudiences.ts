@@ -1,82 +1,59 @@
-import type { Audience, AudienceRule } from '../types/experiment'
-
-const northAmericaRule: AudienceRule = {
-  id: 'rule-region-north-america',
-  field: 'Region',
-  operator: 'is one of',
-  value: 'United States, Canada',
-}
-
-const returningVisitorRule: AudienceRule = {
-  id: 'rule-visitor-returning',
-  field: 'Visitor type',
-  operator: 'is',
-  value: 'Returning',
-}
-
-const enterpriseCompanySizeRule: AudienceRule = {
-  id: 'rule-company-size-enterprise',
-  field: 'Company size',
-  operator: '>=',
-  value: '250',
-}
+import type { Audience } from '../types/experiment'
 
 export const mockAudiences: Audience[] = [
   {
     id: 'aud-ecommerce-prospects',
     name: 'Ecommerce growth prospects',
     description:
-      'New visitors from ecommerce campaigns who land on product and solution pages.',
+      'New prospect traffic in North America browsing from larger screens.',
     size: 19640,
     lastUpdated: '2026-03-16',
     rules: [
       {
-        id: 'rule-visitor-new',
-        field: 'Visitor type',
-        operator: 'is',
-        value: 'New',
+        id: 'rule-ecommerce-country',
+        field: 'country',
+        operator: 'in',
+        value: 'United States, Canada',
       },
       {
-        id: 'rule-industry-ecommerce',
-        field: 'Industry',
-        operator: 'contains',
-        value: 'Ecommerce',
+        id: 'rule-ecommerce-returning',
+        field: 'isReturningUser',
+        operator: 'equals',
+        value: 'false',
       },
       {
-        id: 'rule-page-group-core',
-        field: 'Page group',
-        operator: 'is one of',
-        value: 'Homepage, Product, Solutions',
+        id: 'rule-ecommerce-device',
+        field: 'device',
+        operator: 'in',
+        value: 'desktop, tablet',
       },
-      northAmericaRule,
     ],
   },
   {
     id: 'aud-high-intent',
     name: 'High-intent pricing visitors',
     description:
-      'Returning visitors showing strong buying intent on pricing and comparison pages.',
+      'Returning visitors on pricing journeys with desktop or tablet traffic.',
     size: 7420,
     lastUpdated: '2026-03-15',
     rules: [
-      returningVisitorRule,
       {
-        id: 'rule-pricing-views',
-        field: 'Pricing views',
-        operator: '>=',
-        value: '2',
+        id: 'rule-high-intent-returning',
+        field: 'isReturningUser',
+        operator: 'equals',
+        value: 'true',
       },
       {
-        id: 'rule-comparison-page-views',
-        field: 'Comparison page views',
-        operator: '>=',
-        value: '1',
+        id: 'rule-high-intent-page',
+        field: 'pageUrl',
+        operator: 'contains',
+        value: '/pricing',
       },
       {
-        id: 'rule-last-activity',
-        field: 'Last activity',
-        operator: 'within',
-        value: '14 days',
+        id: 'rule-high-intent-device',
+        field: 'device',
+        operator: 'in',
+        value: 'desktop, tablet',
       },
     ],
   },
@@ -84,24 +61,28 @@ export const mockAudiences: Audience[] = [
     id: 'aud-enterprise-evaluators',
     name: 'Enterprise evaluators',
     description:
-      'Large-account buyers evaluating rollout readiness across security, integration, and demo pages.',
+      'Enterprise buyers evaluating signup flows from core North America markets.',
     size: 2180,
     lastUpdated: '2026-03-14',
     rules: [
-      enterpriseCompanySizeRule,
       {
-        id: 'rule-buyer-role',
-        field: 'Buyer role',
-        operator: 'is one of',
-        value: 'Marketing lead, Growth lead, Product owner',
+        id: 'rule-enterprise-country',
+        field: 'country',
+        operator: 'in',
+        value: 'United States, Canada',
       },
       {
-        id: 'rule-page-group-evaluation',
-        field: 'Page group',
-        operator: 'is one of',
-        value: 'Security, Integrations, Demo request',
+        id: 'rule-enterprise-page',
+        field: 'pageUrl',
+        operator: 'contains',
+        value: '/signup',
       },
-      northAmericaRule,
+      {
+        id: 'rule-enterprise-device',
+        field: 'device',
+        operator: 'notEquals',
+        value: 'mobile',
+      },
     ],
   },
 ]

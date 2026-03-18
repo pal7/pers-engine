@@ -101,9 +101,9 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
             <select
               className="field__control"
               onChange={(event) =>
-                updateRequest('returningUser', event.target.value === 'true')
+                updateRequest('isReturningUser', event.target.value === 'true')
               }
-              value={String(request.returningUser)}
+              value={String(request.isReturningUser)}
             >
               <option value="true">True</option>
               <option value="false">False</option>
@@ -140,6 +140,25 @@ export function SimulatorPanel({ experiments, audiences }: SimulatorPanelProps) 
             <strong>{simulationResult.assignedVariant?.name ?? 'None'}</strong>
           </article>
         </div>
+
+        {simulationResult.audienceRuleResults.length > 0 ? (
+          <div className="simulator-result__notes">
+            <span className="label">Audience rule evaluation</span>
+            <div className="stack">
+              {simulationResult.audienceRuleResults.map((result) => (
+                <article className="simulator-result__note" key={result.ruleId}>
+                  <div className="simulator-result__note-header">
+                    <strong>{result.field}</strong>
+                    <span className={`badge badge--${result.matched ? 'completed' : 'paused'}`}>
+                      {result.matched ? 'Pass' : 'Fail'}
+                    </span>
+                  </div>
+                  <p>{result.note}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="simulator-result__notes">
           <span className="label">Reason / evaluation notes</span>

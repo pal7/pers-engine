@@ -5,30 +5,25 @@ interface EditableRule extends AudienceRule {
   id: string
 }
 
-const fieldOptions = [
-  'Visitor type',
-  'Region',
-  'Industry',
-  'Page group',
-  'Pricing views',
-  'Company size',
+const fieldOptions: AudienceRule['field'][] = [
+  'device',
+  'country',
+  'isReturningUser',
+  'pageUrl',
 ]
 
 const operatorOptions: AudienceRule['operator'][] = [
-  'is',
-  'is not',
+  'equals',
+  'notEquals',
   'contains',
-  'is one of',
-  '>=',
-  '<=',
-  'within',
+  'in',
 ]
 
 const createRule = (index: number): EditableRule => ({
   id: `rule-${index}`,
-  field: 'Visitor type',
-  operator: 'is',
-  value: 'Returning',
+  field: 'device',
+  operator: 'equals',
+  value: 'desktop',
 })
 
 export function AudienceRuleBuilder() {
@@ -36,9 +31,9 @@ export function AudienceRuleBuilder() {
     createRule(1),
     {
       id: 'rule-2',
-      field: 'Page group',
-      operator: 'is one of',
-      value: 'Pricing, Demo request',
+      field: 'pageUrl',
+      operator: 'contains',
+      value: '/pricing',
     },
   ])
 
@@ -84,7 +79,9 @@ export function AudienceRuleBuilder() {
             </span>
             <select
               className="field__control"
-              onChange={(event) => updateRule(rule.id, 'field', event.target.value)}
+              onChange={(event) =>
+                updateRule(rule.id, 'field', event.target.value as AudienceRule['field'])
+              }
               value={rule.field}
             >
               {fieldOptions.map((option) => (

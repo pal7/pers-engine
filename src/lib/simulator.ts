@@ -9,7 +9,23 @@ export interface SimulationRequestContext {
   sessionId: string
   device: SimulatorDevice
   country: string
-  returningUser: boolean
+  isReturningUser: boolean
+}
+
+export interface AudienceRuleMatchResult {
+  ruleId: string
+  field: AudienceRule['field']
+  operator: AudienceRule['operator']
+  expectedValue: string
+  actualValue: string
+  matched: boolean
+  note: string
+}
+
+export interface AudienceMatchResult {
+  matched: boolean
+  ruleResults: AudienceRuleMatchResult[]
+  notes: string[]
 }
 
 export interface SimulationResult {
@@ -17,13 +33,8 @@ export interface SimulationResult {
   experimentStatus: Experiment['status'] | 'No match'
   audienceMatched: boolean
   assignedVariant: Variant | null
+  audienceRuleResults: AudienceRuleMatchResult[]
   notes: string[]
-}
-
-interface AudienceRuleEvaluation {
-  matched: boolean
-  skipped: boolean
-  note: string
 }
 
 const defaultBaseUrl = 'https://simulator.local'
@@ -40,7 +51,7 @@ export const createSimulationRequest = (): SimulationRequestContext => ({
   sessionId: 'sess-54ab',
   device: 'desktop',
   country: 'United States',
-  returningUser: true,
+  isReturningUser: true,
 })
 
 const normalizeValue = (value: string) => value.trim().toLowerCase()
@@ -59,190 +70,80 @@ const parseUrlPath = (value: string) => {
   }
 }
 
-const derivePageGroup = (pageUrl: string) => {
-  const path = parseUrlPath(pageUrl).toLowerCase()
-
-  if (path === '/') {
-    return 'Homepage'
-  }
-
-  if (path.startsWith('/pricing')) {
-    return 'Pricing'
-  }
-
-  if (path.startsWith('/product')) {
-    return 'Product'
-  }
-
-  if (path.startsWith('/solutions')) {
-    return 'Solutions'
-  }
-
-  if (path.startsWith('/security')) {
-    return 'Security'
-  }
-
-  if (path.startsWith('/integrations')) {
-    return 'Integrations'
-  }
-
-  if (path.startsWith('/signup') || path.includes('demo')) {
-    return 'Demo request'
-  }
-
-  return 'Other'
-}
-
 const parseListValue = (value: string) =>
   value
     .split(',')
     .map((entry) => normalizeValue(entry))
     .filter(Boolean)
 
-const evaluateVisitorTypeRule = (
+const getAudienceFieldValue = (
+  field: AudienceRule['field'],
+  request: SimulationRequestContext,
+) => {
+  switch (field) {
+    case 'device':
+      return request.device
+    case 'country':
+      return request.country
+    case 'isReturningUser':
+      return String(request.isReturningUser)
+    case 'pageUrl':
+      return parseUrlPath(request.pageUrl)
+  }
+}
+
+const buildRuleNote = (
+  matched: boolean,
+  rule: AudienceRule,
+  actualValue: string,
+) =>
+  `${matched ? 'Passed' : 'Failed'} ${rule.field} ${rule.operator} ${rule.value} (actual: ${actualValue}).`
+
+export const evaluateAudienceRule = (
   rule: AudienceRule,
   request: SimulationRequestContext,
-): AudienceRuleEvaluation => {
-  const visitorType = request.returningUser ? 'returning' : 'new'
-  const expectedValue = normalizeValue(rule.value)
+): AudienceRuleMatchResult => {
+  const actualValue = getAudienceFieldValue(rule.field, request)
+  const normalizedActualValue = normalizeValue(actualValue)
+  const normalizedExpectedValue = normalizeValue(rule.value)
 
-  if (rule.operator === 'is') {
-    const matched = visitorType === expectedValue
-
-    return {
-      matched,
-      skipped: false,
-      note: `Visitor type ${matched ? 'matched' : 'did not match'} ${rule.value}.`,
+  const matched = (() => {
+    switch (rule.operator) {
+      case 'equals':
+        return normalizedActualValue === normalizedExpectedValue
+      case 'notEquals':
+        return normalizedActualValue !== normalizedExpectedValue
+      case 'contains':
+        return normalizedActualValue.includes(normalizedExpectedValue)
+      case 'in':
+        return parseListValue(rule.value).includes(normalizedActualValue)
     }
-  }
-
-  if (rule.operator === 'is not') {
-    const matched = visitorType !== expectedValue
-
-    return {
-      matched,
-      skipped: false,
-      note: `Visitor type ${matched ? 'passed' : 'failed'} ${rule.operator} ${rule.value}.`,
-    }
-  }
+  })()
 
   return {
-    matched: true,
-    skipped: true,
-    note: `Skipped visitor type rule with unsupported operator ${rule.operator}.`,
+    ruleId: rule.id,
+    field: rule.field,
+    operator: rule.operator,
+    expectedValue: rule.value,
+    actualValue,
+    matched,
+    note: buildRuleNote(matched, rule, actualValue),
   }
 }
 
-const evaluateRegionRule = (
-  rule: AudienceRule,
+export const evaluateAudienceMatch = (
+  audience: Audience,
   request: SimulationRequestContext,
-): AudienceRuleEvaluation => {
-  const country = normalizeValue(request.country)
-  const expectedCountries = parseListValue(rule.value)
-
-  if (rule.operator === 'is one of') {
-    const matched = expectedCountries.includes(country)
-
-    return {
-      matched,
-      skipped: false,
-      note: `Country ${matched ? 'matched' : 'did not match'} the allowed region list.`,
-    }
-  }
-
-  if (rule.operator === 'is') {
-    const matched = country === normalizeValue(rule.value)
-
-    return {
-      matched,
-      skipped: false,
-      note: `Country ${matched ? 'matched' : 'did not match'} ${rule.value}.`,
-    }
-  }
-
-  if (rule.operator === 'is not') {
-    const matched = country !== normalizeValue(rule.value)
-
-    return {
-      matched,
-      skipped: false,
-      note: `Country ${matched ? 'passed' : 'failed'} ${rule.operator} ${rule.value}.`,
-    }
-  }
-
-  return {
-    matched: true,
-    skipped: true,
-    note: `Skipped region rule with unsupported operator ${rule.operator}.`,
-  }
-}
-
-const evaluatePageGroupRule = (
-  rule: AudienceRule,
-  request: SimulationRequestContext,
-): AudienceRuleEvaluation => {
-  const pageGroup = normalizeValue(derivePageGroup(request.pageUrl))
-
-  if (rule.operator === 'is one of') {
-    const matched = parseListValue(rule.value).includes(pageGroup)
-
-    return {
-      matched,
-      skipped: false,
-      note: `Page group resolved to ${derivePageGroup(request.pageUrl)} and ${matched ? 'matched' : 'did not match'} the audience rule.`,
-    }
-  }
-
-  if (rule.operator === 'is') {
-    const matched = pageGroup === normalizeValue(rule.value)
-
-    return {
-      matched,
-      skipped: false,
-      note: `Page group ${matched ? 'matched' : 'did not match'} ${rule.value}.`,
-    }
-  }
-
-  return {
-    matched: true,
-    skipped: true,
-    note: `Skipped page group rule with unsupported operator ${rule.operator}.`,
-  }
-}
-
-const evaluateAudienceRule = (
-  rule: AudienceRule,
-  request: SimulationRequestContext,
-): AudienceRuleEvaluation => {
-  switch (normalizeValue(rule.field)) {
-    case 'visitor type':
-      return evaluateVisitorTypeRule(rule, request)
-    case 'region':
-      return evaluateRegionRule(rule, request)
-    case 'page group':
-      return evaluatePageGroupRule(rule, request)
-    default:
-      return {
-        matched: true,
-        skipped: true,
-        note: `Skipped ${rule.field} rule because the simulator has no ${rule.field.toLowerCase()} input.`,
-      }
-  }
-}
-
-const evaluateAudience = (audience: Audience, request: SimulationRequestContext) => {
-  const ruleEvaluations = audience.rules.map((rule) => evaluateAudienceRule(rule, request))
-  const matched = ruleEvaluations.every((evaluation) => evaluation.matched)
-  const skippedRules = ruleEvaluations.filter((evaluation) => evaluation.skipped).length
+): AudienceMatchResult => {
+  const ruleResults = audience.rules.map((rule) => evaluateAudienceRule(rule, request))
+  const matched = ruleResults.every((result) => result.matched)
 
   return {
     matched,
+    ruleResults,
     notes: [
-      `Evaluated audience ${audience.name}.`,
-      ...ruleEvaluations.map((evaluation) => evaluation.note),
-      skippedRules > 0
-        ? `${skippedRules} rule${skippedRules === 1 ? '' : 's'} used simulator assumptions.`
-        : 'All audience rules were evaluated from the provided request context.',
+      `Evaluated audience ${audience.name} with AND logic across ${ruleResults.length} rule${ruleResults.length === 1 ? '' : 's'}.`,
+      ...ruleResults.map((result) => result.note),
     ],
   }
 }
@@ -312,6 +213,7 @@ export const simulateExperimentDecision = (
       experimentStatus: 'No match',
       audienceMatched: false,
       assignedVariant: null,
+      audienceRuleResults: [],
       notes: ['No running experiments are available to evaluate.'],
     }
   }
@@ -326,6 +228,7 @@ export const simulateExperimentDecision = (
       experimentStatus: 'No match',
       audienceMatched: false,
       assignedVariant: null,
+      audienceRuleResults: [],
       notes: [
         `No running experiment matched ${parseUrlPath(request.pageUrl)}.`,
         'The simulator only evaluates experiments with status Running.',
@@ -333,7 +236,11 @@ export const simulateExperimentDecision = (
     }
   }
 
-  const failedAudienceEvaluations: Array<{ experiment: Experiment; notes: string[] }> = []
+  const failedAudienceEvaluations: Array<{
+    experiment: Experiment
+    audienceRuleResults: AudienceRuleMatchResult[]
+    notes: string[]
+  }> = []
 
   for (const experiment of targetMatches) {
     const audience = audiences.find(({ id }) => id === experiment.audienceId)
@@ -341,16 +248,18 @@ export const simulateExperimentDecision = (
     if (!audience) {
       failedAudienceEvaluations.push({
         experiment,
+        audienceRuleResults: [],
         notes: ['Audience definition was not found for this experiment.'],
       })
       continue
     }
 
-    const audienceEvaluation = evaluateAudience(audience, request)
+    const audienceEvaluation = evaluateAudienceMatch(audience, request)
 
     if (!audienceEvaluation.matched) {
       failedAudienceEvaluations.push({
         experiment,
+        audienceRuleResults: audienceEvaluation.ruleResults,
         notes: audienceEvaluation.notes,
       })
       continue
@@ -363,12 +272,12 @@ export const simulateExperimentDecision = (
       experimentStatus: experiment.status,
       audienceMatched: true,
       assignedVariant: assignment.variant,
+      audienceRuleResults: audienceEvaluation.ruleResults,
       notes: [
         `Matched ${experiment.name} on ${formatTargetMatchType(
           experiment.targetMatchType,
         )} targeting for ${experiment.targetUrlPattern}.`,
         ...audienceEvaluation.notes,
-        `Request device recorded as ${request.device}.`,
         assignment.note,
       ],
     }
@@ -381,6 +290,7 @@ export const simulateExperimentDecision = (
     experimentStatus: fallbackEvaluation?.experiment.status ?? targetMatches[0].status,
     audienceMatched: false,
     assignedVariant: null,
+    audienceRuleResults: fallbackEvaluation?.audienceRuleResults ?? [],
     notes: [
       `Target URL matched ${targetMatches.length} running experiment${targetMatches.length === 1 ? '' : 's'}, but no audience fully qualified.`,
       ...(fallbackEvaluation?.notes ?? []),
