@@ -5,8 +5,6 @@ interface UrlAnalyzerResultProps {
 }
 
 export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
-  const experimentConfidenceByIndex = ['High', 'Medium', 'Medium']
-
   return (
     <section className="panel">
       <div className="panel__header">
@@ -48,7 +46,7 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
                   </div>
                   <div>
                     <dt className="label">Confidence</dt>
-                    <dd>{issue.severity === 'high' ? 'High' : 'Medium'}</dd>
+                    <dd>{issue.confidence}</dd>
                   </div>
                 </dl>
               </article>
@@ -66,7 +64,7 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
           </div>
 
           <div className="url-analyzer-result__grid">
-            {result.experiments.map((experiment, index) => (
+            {result.experiments.map((experiment) => (
               <article className="url-analyzer-result__card" key={experiment.id}>
                 <strong>{experiment.name}</strong>
                 <p>{experiment.hypothesis}</p>
@@ -77,7 +75,7 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
                   </div>
                   <div>
                     <dt className="label">Confidence</dt>
-                    <dd>{experimentConfidenceByIndex[index] ?? 'Medium'}</dd>
+                    <dd>{experiment.confidence}</dd>
                   </div>
                   <div className="url-analyzer-result__details-full">
                     <dt className="label">Audience</dt>

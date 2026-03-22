@@ -3,6 +3,7 @@ export interface AnalysisRequest {
 }
 
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
+export type AnalysisConfidence = 'High' | 'Medium' | 'Low'
 
 export interface AnalysisIssue {
   id: string
@@ -10,6 +11,7 @@ export interface AnalysisIssue {
   severity: 'high' | 'medium' | 'low'
   detail: string
   impact: string
+  confidence: AnalysisConfidence
 }
 
 export interface AnalysisExperiment {
@@ -18,6 +20,7 @@ export interface AnalysisExperiment {
   hypothesis: string
   expectedImpact: string
   audience: string
+  confidence: AnalysisConfidence
 }
 
 export interface AnalysisResponse {
