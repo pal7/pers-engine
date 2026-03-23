@@ -1,7 +1,7 @@
 import type {
   AnalysisEvidence,
   AnalysisPageType,
-} from '../types/analysis'
+} from '../../src/types/analysis'
 
 export type SiteType = AnalysisPageType
 

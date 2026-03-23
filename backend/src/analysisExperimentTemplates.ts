@@ -2,7 +2,7 @@ import type {
   AnalysisEvidence,
   AnalysisExperiment,
   AnalysisIssue,
-} from '../types/analysis'
+} from '../../src/types/analysis'
 
 export function createExperimentFromIssue(
   issue: AnalysisIssue,

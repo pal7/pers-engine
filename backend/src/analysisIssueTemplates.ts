@@ -1,4 +1,4 @@
-import type { AnalysisIssue } from '../types/analysis'
+import type { AnalysisIssue } from '../../src/types/analysis'
 
 export function createCtaVisibilityIssue(): AnalysisIssue {
   return {
