@@ -4,6 +4,7 @@ export interface AnalysisRequest {
 
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
 export type AnalysisConfidence = 'High' | 'Medium' | 'Low'
+export type AnalysisPageType = 'ecommerce' | 'travel' | 'saas'
 
 export interface AnalysisIssue {
   id: string
@@ -16,16 +17,27 @@ export interface AnalysisIssue {
 
 export interface AnalysisExperiment {
   id: string
-  name: string
+  title: string
   hypothesis: string
-  expectedImpact: string
-  audience: string
+  variant: string
+  metric: string
+  impact: string
   confidence: AnalysisConfidence
+}
+
+export interface AnalysisEvidence {
+  heroText: string
+  ctaCount: number
+  hasForm: boolean
+  primaryCTAAboveFold: boolean
+  trustSignalsVisible: boolean
+  pageType: AnalysisPageType
 }
 
 export interface AnalysisResponse {
   analyzedUrl: string
   summary: string
+  evidence: AnalysisEvidence
   issues: AnalysisIssue[]
   experiments: AnalysisExperiment[]
 }

@@ -25,6 +25,39 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
           <p>{result.summary}</p>
         </article>
 
+        <section className="url-analyzer-result__section" aria-labelledby="analysis-evidence-title">
+          <div className="url-analyzer-result__section-header">
+            <h3 id="analysis-evidence-title">Observed evidence</h3>
+            <p>Mock page signals used to generate issues and experiment ideas.</p>
+          </div>
+
+          <article className="url-analyzer-result__card">
+            <strong>{result.evidence.heroText}</strong>
+            <dl className="url-analyzer-result__details">
+              <div>
+                <dt className="label">Page type</dt>
+                <dd>{result.evidence.pageType}</dd>
+              </div>
+              <div>
+                <dt className="label">CTA count</dt>
+                <dd>{result.evidence.ctaCount}</dd>
+              </div>
+              <div>
+                <dt className="label">Form present</dt>
+                <dd>{result.evidence.hasForm ? 'Yes' : 'No'}</dd>
+              </div>
+              <div>
+                <dt className="label">Primary CTA above fold</dt>
+                <dd>{result.evidence.primaryCTAAboveFold ? 'Yes' : 'No'}</dd>
+              </div>
+              <div className="url-analyzer-result__details-full">
+                <dt className="label">Trust signals visible</dt>
+                <dd>{result.evidence.trustSignalsVisible ? 'Yes' : 'No'}</dd>
+              </div>
+            </dl>
+          </article>
+        </section>
+
         <section className="url-analyzer-result__section" aria-labelledby="analysis-issues-title">
           <div className="url-analyzer-result__section-header">
             <h3 id="analysis-issues-title">Key issues</h3>
@@ -66,20 +99,24 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
           <div className="url-analyzer-result__grid">
             {result.experiments.map((experiment) => (
               <article className="url-analyzer-result__card" key={experiment.id}>
-                <strong>{experiment.name}</strong>
+                <strong>{experiment.title}</strong>
                 <p>{experiment.hypothesis}</p>
                 <dl className="url-analyzer-result__details">
                   <div>
                     <dt className="label">Impact</dt>
-                    <dd>{experiment.expectedImpact}</dd>
+                    <dd>{experiment.impact}</dd>
                   </div>
                   <div>
                     <dt className="label">Confidence</dt>
                     <dd>{experiment.confidence}</dd>
                   </div>
+                  <div>
+                    <dt className="label">Variant</dt>
+                    <dd>{experiment.variant}</dd>
+                  </div>
                   <div className="url-analyzer-result__details-full">
-                    <dt className="label">Audience</dt>
-                    <dd>{experiment.audience}</dd>
+                    <dt className="label">Metric</dt>
+                    <dd>{experiment.metric}</dd>
                   </div>
                 </dl>
               </article>
