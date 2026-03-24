@@ -25,7 +25,6 @@ export function UrlAnalyzerPage() {
       return
     }
 
-    setCurrentStepIndex(0)
 
     const intervalId = window.setInterval(() => {
       setCurrentStepIndex((currentIndex) =>
@@ -39,6 +38,7 @@ export function UrlAnalyzerPage() {
   }, [status])
 
   const handleSubmit = async (normalizedUrl: string) => {
+    setCurrentStepIndex(0)
     setStatus('loading')
     setErrorMessage('')
     setResult(null)
@@ -83,3 +83,4 @@ export function UrlAnalyzerPage() {
     </AppShell>
   )
 }
+

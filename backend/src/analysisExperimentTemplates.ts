@@ -2,7 +2,7 @@ import type {
   AnalysisEvidence,
   AnalysisExperiment,
   AnalysisIssue,
-} from '../../src/types/analysis'
+} from '../../shared/analysis.ts'
 
 export function createExperimentFromIssue(
   issue: AnalysisIssue,
@@ -68,3 +68,5 @@ export function createExperimentFromIssue(
     ...experimentMap[issue.id],
   }
 }
+
+

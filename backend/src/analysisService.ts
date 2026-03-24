@@ -13,7 +13,7 @@ import type {
   AnalysisIssue,
   AnalysisRequest,
   AnalysisResponse,
-} from '../../src/types/analysis'
+} from '../../shared/analysis.ts'
 
 const ANALYSIS_DELAY_MS = 1200
 const ecommerceDomains = ['nike.com', 'amazon.com', 'bestbuy.com']
@@ -100,3 +100,5 @@ export async function analyzeWebsite(
     experiments,
   }
 }
+
+

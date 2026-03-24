@@ -1,7 +1,7 @@
 import type {
   AnalysisEvidence,
   AnalysisPageType,
-} from '../../src/types/analysis'
+} from '../../shared/analysis.ts'
 
 export type SiteType = AnalysisPageType
 
@@ -35,3 +35,5 @@ export function getMockEvidence(siteType: SiteType): AnalysisEvidence {
 
   return evidenceBySiteType[siteType]
 }
+
+

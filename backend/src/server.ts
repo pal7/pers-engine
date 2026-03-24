@@ -1,7 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import { analyzeWebsite } from './analysisService'
-import type { AnalysisRequest } from '../../src/types/analysis'
+import type { AnalysisRequest } from '../../shared/analysis.ts'
 
 const app = express()
 const port = Number(process.env.PORT || 3001)
@@ -36,3 +36,5 @@ app.post('/api/analyze', async (request, response) => {
 app.listen(port, () => {
   console.log(`Analyzer backend listening on http://localhost:${port}`)
 })
+
+

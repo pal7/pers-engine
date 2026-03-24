@@ -5,8 +5,6 @@ const ANALYSIS_API_URL = 'http://localhost:3001/api/analyze'
 export async function submitAnalysis(
   request: AnalysisRequest,
 ): Promise<AnalysisResponse> {
-  console.log('Submitting analysis request for URL:', request.url)
-
   let response: Response
 
   try {
@@ -32,9 +30,5 @@ export async function submitAnalysis(
     )
   }
 
-  const responseData = (await response.json()) as AnalysisResponse
-
-  console.log('Analysis response data:', responseData)
-
-  return responseData
+  return (await response.json()) as AnalysisResponse
 }

@@ -1,4 +1,4 @@
-import type { AnalysisIssue } from '../../src/types/analysis'
+import type { AnalysisIssue } from '../../shared/analysis.ts'
 
 export function createCtaVisibilityIssue(): AnalysisIssue {
   return {
@@ -64,3 +64,5 @@ export function createHeadlineClarityIssue(): AnalysisIssue {
     confidence: 'Low',
   }
 }
+
+
