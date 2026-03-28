@@ -5,6 +5,8 @@ export interface AnalysisRequest {
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
 export type AnalysisConfidence = 'High' | 'Medium' | 'Low'
 export type AnalysisPageType = 'ecommerce' | 'travel' | 'saas'
+export type AnalysisExtractionMode = 'html' | 'browser'
+export type AnalysisExtractionQuality = 'good' | 'limited' | 'blocked'
 
 export interface AnalysisIssue {
   id: string
@@ -34,10 +36,24 @@ export interface AnalysisEvidence {
   pageType: AnalysisPageType
 }
 
+export interface AnalysisExtractedSignals {
+  finalUrl: string
+  title: string
+  h1: string
+  heroText: string
+  hasForm: boolean
+  buttonCount: number
+  ctaTexts: string[]
+}
+
 export interface AnalysisResponse {
   analyzedUrl: string
   summary: string
   evidence: AnalysisEvidence
+  extractionMode: AnalysisExtractionMode
+  extractionQuality: AnalysisExtractionQuality
+  extractionWarnings: string[]
+  extractedSignals: AnalysisExtractedSignals
   issues: AnalysisIssue[]
   experiments: AnalysisExperiment[]
 }

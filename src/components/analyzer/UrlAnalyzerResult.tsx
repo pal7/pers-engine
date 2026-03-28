@@ -23,12 +23,32 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
           </div>
           <strong>{result.analyzedUrl}</strong>
           <p>{result.summary}</p>
+          <dl className="url-analyzer-result__details">
+            <div>
+              <dt className="label">Extraction mode</dt>
+              <dd>{result.extractionMode}</dd>
+            </div>
+            <div>
+              <dt className="label">Extraction quality</dt>
+              <dd>{result.extractionQuality}</dd>
+            </div>
+          </dl>
+          {result.extractionWarnings.length > 0 ? (
+            <div>
+              <p className="label">Extraction warnings</p>
+              <ul>
+                {result.extractionWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </article>
 
         <section className="url-analyzer-result__section" aria-labelledby="analysis-evidence-title">
           <div className="url-analyzer-result__section-header">
             <h3 id="analysis-evidence-title">Observed evidence</h3>
-            <p>Mock page signals used to generate issues and experiment ideas.</p>
+            <p>Extracted page signals used to generate issues and experiment ideas.</p>
           </div>
 
           <article className="url-analyzer-result__card">
@@ -53,6 +73,22 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
               <div className="url-analyzer-result__details-full">
                 <dt className="label">Trust signals visible</dt>
                 <dd>{result.evidence.trustSignalsVisible ? 'Yes' : 'No'}</dd>
+              </div>
+              <div className="url-analyzer-result__details-full">
+                <dt className="label">Extracted title</dt>
+                <dd>{result.extractedSignals.title || 'None detected'}</dd>
+              </div>
+              <div className="url-analyzer-result__details-full">
+                <dt className="label">First H1</dt>
+                <dd>{result.extractedSignals.h1 || 'None detected'}</dd>
+              </div>
+              <div className="url-analyzer-result__details-full">
+                <dt className="label">Candidate CTAs</dt>
+                <dd>
+                  {result.extractedSignals.ctaTexts.length > 0
+                    ? result.extractedSignals.ctaTexts.join(', ')
+                    : 'None detected'}
+                </dd>
               </div>
             </dl>
           </article>

@@ -24,11 +24,23 @@ app.post('/api/analyze', async (request, response) => {
   }
 
   try {
-    const analysis = await analyzeWebsite({ url: body.url })
+    const parsedUrl = new URL(body.url)
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      response.status(400).json({
+        message: 'Please submit an http:// or https:// website URL.',
+      })
+      return
+    }
+
+    const analysis = await analyzeWebsite({ url: parsedUrl.toString() })
     response.json(analysis)
-  } catch {
+  } catch (error) {
     response.status(500).json({
-      message: 'We could not prepare the analysis request for that website.',
+      message:
+        error instanceof Error
+          ? error.message
+          : 'We could not prepare the analysis request for that website.',
     })
   }
 })
@@ -36,5 +48,4 @@ app.post('/api/analyze', async (request, response) => {
 app.listen(port, () => {
   console.log(`Analyzer backend listening on http://localhost:${port}`)
 })
-
 
