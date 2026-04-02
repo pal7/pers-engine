@@ -62,7 +62,7 @@ export function UrlAnalyzerPage() {
       overline="Website personalization analyzer"
       productName="Website Personalization Analyzer"
       subtitle="Run a lightweight first-pass analysis on any live website and surface clear personalization opportunities, friction points, and next-test ideas in one focused view."
-      primaryActions={<span className="badge badge--neutral">Phase 1 mock flow</span>}
+      primaryActions={<span className="badge badge--neutral">Rendered extraction enabled</span>}
     >
       <div className="url-analyzer-page">
         <UrlAnalyzerForm
@@ -83,4 +83,3 @@ export function UrlAnalyzerPage() {
     </AppShell>
   )
 }
-

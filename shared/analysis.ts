@@ -5,6 +5,8 @@ export interface AnalysisRequest {
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
 export type AnalysisConfidence = 'High' | 'Medium' | 'Low'
 export type AnalysisPageType = 'ecommerce' | 'travel' | 'saas'
+export type AnalysisExtractionMode = 'html' | 'browser'
+export type AnalysisExtractionQuality = 'good' | 'limited' | 'blocked'
 
 export interface AnalysisIssue {
   id: string
@@ -34,6 +36,7 @@ export interface AnalysisEvidence {
   pageType: AnalysisPageType
 }
 
+<<<<<<< HEAD
 export interface AnalysisDebugData {
   resolvedUrl: string
   pageTitle: string
@@ -43,12 +46,26 @@ export interface AnalysisDebugData {
   ctaCount: number
   candidateCtaTexts: string[]
   evidence: AnalysisEvidence
+=======
+export interface AnalysisExtractedSignals {
+  finalUrl: string
+  title: string
+  h1: string
+  heroText: string
+  hasForm: boolean
+  buttonCount: number
+  ctaTexts: string[]
+>>>>>>> b908bc75df7938daea8c55056ae7fdf3b51ab876
 }
 
 export interface AnalysisResponse {
   analyzedUrl: string
   summary: string
   evidence: AnalysisEvidence
+  extractionMode: AnalysisExtractionMode
+  extractionQuality: AnalysisExtractionQuality
+  extractionWarnings: string[]
+  extractedSignals: AnalysisExtractedSignals
   issues: AnalysisIssue[]
   experiments: AnalysisExperiment[]
   debug?: AnalysisDebugData
