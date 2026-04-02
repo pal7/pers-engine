@@ -5,6 +5,8 @@ interface UrlAnalyzerResultProps {
 }
 
 export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
+  const debugData = result.debug
+
   return (
     <section className="panel">
       <div className="panel__header">
@@ -28,7 +30,7 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
         <section className="url-analyzer-result__section" aria-labelledby="analysis-evidence-title">
           <div className="url-analyzer-result__section-header">
             <h3 id="analysis-evidence-title">Observed evidence</h3>
-            <p>Mock page signals used to generate issues and experiment ideas.</p>
+            <p>Observed page signals used to generate issues and experiment ideas.</p>
           </div>
 
           <article className="url-analyzer-result__card">
@@ -57,6 +59,57 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
             </dl>
           </article>
         </section>
+
+        {debugData ? (
+          <section className="url-analyzer-result__section" aria-labelledby="analysis-debug-title">
+            <details className="url-analyzer-debug">
+              <summary className="url-analyzer-debug__summary" id="analysis-debug-title">
+                <span>Debug / Evidence</span>
+                <span className="badge badge--neutral">Dev only</span>
+              </summary>
+              <div className="url-analyzer-debug__content">
+                <dl className="url-analyzer-result__details url-analyzer-debug__details">
+                  <div>
+                    <dt className="label">Resolved URL</dt>
+                    <dd>{debugData.resolvedUrl}</dd>
+                  </div>
+                  <div>
+                    <dt className="label">Page title</dt>
+                    <dd>{debugData.pageTitle || 'Not found'}</dd>
+                  </div>
+                  <div>
+                    <dt className="label">Meta description</dt>
+                    <dd>{debugData.metaDescription || 'Not found'}</dd>
+                  </div>
+                  <div>
+                    <dt className="label">First H1</dt>
+                    <dd>{debugData.firstH1Text || 'Not found'}</dd>
+                  </div>
+                  <div>
+                    <dt className="label">Form present</dt>
+                    <dd>{debugData.hasForm ? 'Yes' : 'No'}</dd>
+                  </div>
+                  <div>
+                    <dt className="label">CTA count</dt>
+                    <dd>{debugData.ctaCount}</dd>
+                  </div>
+                  <div className="url-analyzer-result__details-full">
+                    <dt className="label">Candidate CTA texts</dt>
+                    <dd>
+                      {debugData.candidateCtaTexts.length > 0
+                        ? debugData.candidateCtaTexts.join(', ')
+                        : 'None detected'}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="url-analyzer-debug__json">
+                  <p className="label">Final evidence object</p>
+                  <pre>{JSON.stringify(debugData.evidence, null, 2)}</pre>
+                </div>
+              </div>
+            </details>
+          </section>
+        ) : null}
 
         <section className="url-analyzer-result__section" aria-labelledby="analysis-issues-title">
           <div className="url-analyzer-result__section-header">

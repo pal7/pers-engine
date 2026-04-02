@@ -1,41 +1,15 @@
-import { getMockEvidence, type SiteType } from './analysisMockData'
-import { createExperimentFromIssue } from './analysisExperimentTemplates'
-import {
-  createCompetingActionsIssue,
-  createCtaVisibilityIssue,
-  createFormFrictionIssue,
-  createHeadlineClarityIssue,
-  createTrustReinforcementIssue,
-} from './analysisIssueTemplates'
+import { buildEvidence } from './services/buildEvidence'
+import { extractPageSignals } from './services/extractPageSignals'
+import { fetchPage } from './services/fetchPage'
+import { generateExperiments } from './services/generateExperiments'
+import { generateIssues } from './services/generateIssues'
 import type {
+  AnalysisDebugData,
   AnalysisEvidence,
-  AnalysisExperiment,
   AnalysisIssue,
   AnalysisRequest,
   AnalysisResponse,
 } from '../../shared/analysis.ts'
-
-const ANALYSIS_DELAY_MS = 1200
-const ecommerceDomains = ['nike.com', 'amazon.com', 'bestbuy.com']
-const travelDomains = ['airbnb.com', 'booking.com']
-
-function matchesKnownDomain(hostname: string, domain: string): boolean {
-  return hostname === domain || hostname.endsWith(`.${domain}`)
-}
-
-function getSiteType(url: string): SiteType {
-  const hostname = new URL(url).hostname.toLowerCase()
-
-  if (ecommerceDomains.some((domain) => matchesKnownDomain(hostname, domain))) {
-    return 'ecommerce'
-  }
-
-  if (travelDomains.some((domain) => matchesKnownDomain(hostname, domain))) {
-    return 'travel'
-  }
-
-  return 'saas'
-}
 
 function buildSummary(hostname: string, evidence: AnalysisEvidence, issues: AnalysisIssue[]): string {
   const trustSignalSummary = evidence.trustSignalsVisible
@@ -43,62 +17,51 @@ function buildSummary(hostname: string, evidence: AnalysisEvidence, issues: Anal
     : 'trust reinforcement appears limited'
   const primaryOpportunity = issues[0]?.title.toLowerCase() ?? 'message clarity'
 
-  return `${hostname} presents as a ${evidence.pageType} experience with "${evidence.heroText}" leading the page. The current signal set suggests ${trustSignalSummary}, ${evidence.ctaCount} primary actions competing for attention, and the clearest near-term opportunity around ${primaryOpportunity}.`
-}
-
-function buildIssues(evidence: AnalysisEvidence): AnalysisIssue[] {
-  const issues: AnalysisIssue[] = []
-
-  if (!evidence.primaryCTAAboveFold) {
-    issues.push(createCtaVisibilityIssue())
-  }
-
-  if (evidence.ctaCount > 3) {
-    issues.push(createCompetingActionsIssue())
-  }
-
-  if (evidence.hasForm && evidence.pageType === 'saas') {
-    issues.push(createFormFrictionIssue())
-  }
-
-  if (!evidence.trustSignalsVisible) {
-    issues.push(createTrustReinforcementIssue())
-  }
-
-  if (issues.length === 0) {
-    issues.push(createHeadlineClarityIssue())
-  }
-
-  return issues
-}
-
-function buildExperiments(
-  issues: AnalysisIssue[],
-  evidence: AnalysisEvidence,
-): AnalysisExperiment[] {
-  return issues.map((issue) => createExperimentFromIssue(issue, evidence))
+  return `${hostname} presents as a ${evidence.pageType} experience with "${evidence.heroText}" leading the page. The current signal set suggests ${trustSignalSummary}, ${evidence.ctaCount} likely calls to action competing for attention, and the clearest near-term opportunity around ${primaryOpportunity}.`
 }
 
 export async function analyzeWebsite(
   request: AnalysisRequest,
 ): Promise<AnalysisResponse> {
-  await new Promise((resolve) => setTimeout(resolve, ANALYSIS_DELAY_MS))
-
-  const analyzedUrl = new URL(request.url).toString()
-  const hostname = new URL(request.url).hostname.replace(/^www\./, '')
-  const siteType = getSiteType(request.url)
-  const evidence = getMockEvidence(siteType)
-  const issues = buildIssues(evidence)
-  const experiments = buildExperiments(issues, evidence)
+  const fetchedPage = await fetchPage(request.url)
+  const signals = extractPageSignals(fetchedPage)
+  const evidence = buildEvidence(signals)
+  const issues = generateIssues(evidence, signals)
+  const experiments = generateExperiments(issues, evidence)
+  const hostname = new URL(fetchedPage.resolvedUrl).hostname.replace(/^www\./, '')
   const summary = buildSummary(hostname, evidence, issues)
+  const debug: AnalysisDebugData = {
+    resolvedUrl: fetchedPage.resolvedUrl,
+    pageTitle: signals.pageTitle,
+    metaDescription: signals.metaDescription,
+    firstH1Text: signals.firstH1Text,
+    hasForm: signals.hasForm,
+    ctaCount: evidence.ctaCount,
+    candidateCtaTexts: signals.candidateCtaTexts,
+    evidence,
+  }
+
+  console.log('[analyze] resolved URL:', fetchedPage.resolvedUrl)
+  console.log('[analyze] extracted signals:', {
+    pageTitle: signals.pageTitle,
+    firstH1Text: signals.firstH1Text,
+    hasForm: signals.hasForm,
+    buttonCount: signals.buttonCount,
+    anchorCount: signals.anchorCount,
+    ctaCount: evidence.ctaCount,
+    candidateCtaTexts: signals.candidateCtaTexts,
+    trustSignalsVisible: evidence.trustSignalsVisible,
+    pageType: evidence.pageType,
+  })
+  console.log('[analyze] issue count:', issues.length)
+  console.log('[analyze] experiment count:', experiments.length)
 
   return {
-    analyzedUrl,
+    analyzedUrl: fetchedPage.resolvedUrl,
     summary,
     evidence,
     issues,
     experiments,
+    debug,
   }
 }
-
-

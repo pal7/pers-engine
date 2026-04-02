@@ -1,6 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import { analyzeWebsite } from './analysisService'
+import { AnalysisServiceError } from './services/analysisError'
 import type { AnalysisRequest } from '../../shared/analysis.ts'
 
 const app = express()
@@ -23,10 +24,21 @@ app.post('/api/analyze', async (request, response) => {
     return
   }
 
+  console.log('[analyze] incoming URL:', body.url)
+
   try {
     const analysis = await analyzeWebsite({ url: body.url })
     response.json(analysis)
-  } catch {
+  } catch (error) {
+    if (error instanceof AnalysisServiceError) {
+      console.error('[analyze] request failed:', error.message)
+      response.status(error.statusCode).json({
+        message: error.message,
+      })
+      return
+    }
+
+    console.error('[analyze] unexpected failure:', error)
     response.status(500).json({
       message: 'We could not prepare the analysis request for that website.',
     })
@@ -36,5 +48,3 @@ app.post('/api/analyze', async (request, response) => {
 app.listen(port, () => {
   console.log(`Analyzer backend listening on http://localhost:${port}`)
 })
-
-

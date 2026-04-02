@@ -34,10 +34,22 @@ export interface AnalysisEvidence {
   pageType: AnalysisPageType
 }
 
+export interface AnalysisDebugData {
+  resolvedUrl: string
+  pageTitle: string
+  metaDescription: string
+  firstH1Text: string
+  hasForm: boolean
+  ctaCount: number
+  candidateCtaTexts: string[]
+  evidence: AnalysisEvidence
+}
+
 export interface AnalysisResponse {
   analyzedUrl: string
   summary: string
   evidence: AnalysisEvidence
   issues: AnalysisIssue[]
   experiments: AnalysisExperiment[]
+  debug?: AnalysisDebugData
 }
