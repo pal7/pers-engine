@@ -36,7 +36,6 @@ export interface AnalysisEvidence {
   pageType: AnalysisPageType
 }
 
-<<<<<<< HEAD
 export interface AnalysisDebugData {
   resolvedUrl: string
   pageTitle: string
@@ -46,7 +45,8 @@ export interface AnalysisDebugData {
   ctaCount: number
   candidateCtaTexts: string[]
   evidence: AnalysisEvidence
-=======
+}
+
 export interface AnalysisExtractedSignals {
   finalUrl: string
   title: string
@@ -55,7 +55,6 @@ export interface AnalysisExtractedSignals {
   hasForm: boolean
   buttonCount: number
   ctaTexts: string[]
->>>>>>> b908bc75df7938daea8c55056ae7fdf3b51ab876
 }
 
 export interface AnalysisResponse {
