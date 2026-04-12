@@ -63,24 +63,31 @@ infra/AZURE_SETUP.md
 
 ## Current state
 
-- ✅ Frontend UI working
-- ✅ Express backend with mock data
-- ✅ Shared types
-- ✅ CLAUDE.md added
-- ✅ Azure Static Web Apps — live at https://polite-moss-0b0a7a60f.2.azurestaticapps.net/
+### Live
+- ✅ Frontend — https://polite-moss-0b0a7a60f.2.azurestaticapps.net/
+- ✅ Backend — https://pers-engine-backend.agreeableflower-05a7ca4e.canadacentral.azurecontainerapps.io
+- ✅ GitHub Actions CI/CD (push to main → build → deploy SWA + Container Apps)
+
+### Features
+- ✅ URL analysis with UX issues + experiment suggestions
+- ✅ Tech stack detection (44 tools, 10 categories, HTML signal matching)
+- ✅ Shared TypeScript types (shared/analysis.ts)
+
+### Azure infrastructure
+- ✅ Azure Static Web Apps (frontend + CDN)
+- ✅ Azure Container Apps (backend)
+- ✅ Container Registry — persengineacr.azurecr.io
 - ✅ Azure AI Foundry — pers-engine-foundry (Canada Central)
 - ✅ Cosmos DB — pers-engine-db (serverless, analyses container)
 - ✅ Storage Account — persenginestore
 - ✅ Key Vault — pers-engine-kv
 - ✅ Application Insights — pers-engine-insights
-- ✅ Container Registry — persengineacr.azurecr.io
-- ✅ Frontend connected to live backend (VITE_API_URL → Container Apps)
-- ✅ Full stack deployed on Azure
-- ⬜ Docker image build + push to ACR
-- ⬜ Container Apps — backend deployment
-- ⬜ Azure OpenAI model deployment in Foundry
-- ⬜ Wire backend to Key Vault + Cosmos DB
-- ⬜ Application Insights instrumentation
+
+### Still to do
+- ⬜ Azure OpenAI integration (replace mock data with real GPT-4o responses)
+- ⬜ Wire detected tech stack into GPT-4o prompt (implementationHint per experiment)
+- ⬜ Cosmos DB caching (cache analysis results by URL)
+- ⬜ Key Vault secrets for backend (replace .env with managed identity)
 
 ## Azure target architecture
 
