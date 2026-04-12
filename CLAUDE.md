@@ -74,6 +74,8 @@ infra/AZURE_SETUP.md
 - ✅ Key Vault — pers-engine-kv
 - ✅ Application Insights — pers-engine-insights
 - ✅ Container Registry — persengineacr.azurecr.io
+- ✅ Frontend connected to live backend (VITE_API_URL → Container Apps)
+- ✅ Full stack deployed on Azure
 - ⬜ Docker image build + push to ACR
 - ⬜ Container Apps — backend deployment
 - ⬜ Azure OpenAI model deployment in Foundry
