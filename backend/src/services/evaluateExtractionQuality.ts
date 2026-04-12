@@ -32,6 +32,7 @@ export function evaluateExtractionQuality(input: {
   extractionMode: AnalysisExtractionMode
   signals: PageSignals
   baseWarnings?: string[]
+  rawHtml?: string
 }): ExtractionResult {
   const warnings = [...(input.baseWarnings ?? [])]
   const combinedText = [
@@ -95,5 +96,6 @@ export function evaluateExtractionQuality(input: {
     extractionQuality,
     extractionWarnings: Array.from(new Set(warnings)),
     signals: input.signals,
+    rawHtml: input.rawHtml ?? '',
   }
 }

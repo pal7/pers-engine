@@ -1,7 +1,20 @@
-import type { AnalysisResponse } from "../../types/analysis";
+import type { AnalysisResponse, TechStackCategory } from "../../types/analysis";
 
 interface UrlAnalyzerResultProps {
   result: AnalysisResponse;
+}
+
+const CATEGORY_LABELS: Record<TechStackCategory, string> = {
+  'ab-testing': 'A/B testing',
+  personalisation: 'Personalisation',
+  analytics: 'Analytics',
+  'tag-manager': 'Tag manager',
+  cms: 'CMS',
+  framework: 'Framework',
+  cdp: 'CDP',
+  ecommerce: 'Ecommerce',
+  heatmap: 'Heatmap',
+  crm: 'CRM',
 }
 
 export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
@@ -100,6 +113,37 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
               </div>
             </dl>
           </article>
+        </section>
+
+        <section
+          className='url-analyzer-result__section'
+          aria-labelledby='analysis-techstack-title'
+        >
+          <div className='url-analyzer-result__section-header'>
+            <h3 id='analysis-techstack-title'>Detected tech stack</h3>
+            <p>Tools identified from script sources and page signals.</p>
+          </div>
+
+          {result.techStack.length > 0 ? (
+            <div className='tech-stack-grid'>
+              {result.techStack.map((tech) => (
+                <article key={tech.name} className='tech-stack-chip'>
+                  <div className='tech-stack-chip__header'>
+                    <span className='tech-stack-chip__name'>{tech.name}</span>
+                    <span className={`badge tech-stack-chip__badge--${tech.category}`}>
+                      {CATEGORY_LABELS[tech.category]}
+                    </span>
+                  </div>
+                  <p className='tech-stack-chip__evidence'>{tech.evidence}</p>
+                  <span className={`tech-stack-chip__confidence tech-stack-chip__confidence--${tech.confidence}`}>
+                    {tech.confidence}
+                  </span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className='tech-stack-empty'>No tools detected from page source.</p>
+          )}
         </section>
 
         {debugData ? (

@@ -115,6 +115,7 @@ export async function extractHtmlSignals(url: string): Promise<ExtractionResult>
       extractionMode: 'html',
       signals,
       baseWarnings,
+      rawHtml: html,
     })
   } catch (error) {
     const signals = buildEmptySignals(url)

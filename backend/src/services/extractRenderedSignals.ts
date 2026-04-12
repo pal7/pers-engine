@@ -183,10 +183,18 @@ export async function extractRenderedSignals(url: string): Promise<ExtractionRes
       baseWarnings.push(getEvaluationWarning(error, 'CTA and form extraction'))
     }
 
+    let rawHtml = ''
+    try {
+      rawHtml = await page.content()
+    } catch {
+      // rawHtml stays empty; tech stack detection will return []
+    }
+
     return evaluateExtractionQuality({
       extractionMode: 'browser',
       signals: finalizeSignals(signals),
       baseWarnings,
+      rawHtml,
     })
   } catch (error) {
     const signals = buildEmptySignals(url)

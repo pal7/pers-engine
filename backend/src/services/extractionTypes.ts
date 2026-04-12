@@ -21,4 +21,5 @@ export interface ExtractionResult {
   extractionQuality: AnalysisExtractionQuality;
   extractionWarnings: string[];
   signals: PageSignals;
+  rawHtml: string;
 }

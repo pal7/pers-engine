@@ -3,6 +3,29 @@ export interface AnalysisRequest {
 }
 
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
+
+export type TechStackCategory =
+  | 'ab-testing'
+  | 'personalisation'
+  | 'analytics'
+  | 'tag-manager'
+  | 'cms'
+  | 'framework'
+  | 'cdp'
+  | 'ecommerce'
+  | 'heatmap'
+  | 'crm'
+
+export type TechStackConfidence =
+  | 'definitive' // script tag or known domain found
+  | 'likely'     // indirect signal like global variable or meta tag
+
+export interface DetectedTech {
+  name: string
+  category: TechStackCategory
+  confidence: TechStackConfidence
+  evidence: string
+}
 export type AnalysisConfidence = 'High' | 'Medium' | 'Low'
 export type AnalysisPageType = 'ecommerce' | 'travel' | 'saas'
 export type AnalysisExtractionMode = 'html' | 'browser'
@@ -67,5 +90,6 @@ export interface AnalysisResponse {
   extractedSignals: AnalysisExtractedSignals
   issues: AnalysisIssue[]
   experiments: AnalysisExperiment[]
+  techStack: DetectedTech[]
   debug?: AnalysisDebugData
 }

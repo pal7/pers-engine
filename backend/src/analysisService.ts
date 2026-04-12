@@ -1,4 +1,5 @@
 import { buildEvidence } from './services/buildEvidence'
+import { detectTechStack } from './services/techStackDetector'
 import { extractHtmlSignals } from './services/extractHtmlSignals'
 import { extractRenderedSignals } from './services/extractRenderedSignals'
 import { generateExperiments } from './services/generateExperiments'
@@ -128,6 +129,14 @@ export async function analyzeWebsite(
     trustSignalKeywords: trustKeywords.filter((keyword) => combinedText.includes(keyword)),
   }
 
+  const techStack = detectTechStack(bestExtraction.rawHtml)
+
+  // TODO: When OpenAI is wired up, append to prompt:
+  // `Detected tech stack: ${techStack.map(t => t.name).join(', ')}`
+  // For each experiment suggestion, add an implementationHint field explaining
+  // how to implement it using the detected tools (e.g. Adobe Target XT activity,
+  // Optimizely feature flag, etc.)
+
   const evidence = buildEvidence(adaptedSignals)
   const issues = generateIssues(evidence, adaptedSignals)
   const experiments = generateExperiments(issues, evidence)
@@ -175,5 +184,6 @@ export async function analyzeWebsite(
     },
     issues,
     experiments,
+    techStack,
   }
 }
