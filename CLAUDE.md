@@ -66,12 +66,19 @@ infra/AZURE_SETUP.md
 - ✅ Frontend UI working
 - ✅ Express backend with mock data
 - ✅ Shared types
-- ✅ Dockerfile.backend, azure-deploy.yml, AZURE_SETUP.md added
-- ⬜ Azure OpenAI integration (mock → real)
-- ⬜ Playwright scraper container deployed
-- ⬜ Cosmos DB caching
-- ⬜ Azure Static Web Apps deployment (next step)
-- ⬜ Application Insights
+- ✅ CLAUDE.md added
+- ✅ Azure Static Web Apps — live at https://polite-moss-0b0a7a60f.2.azurestaticapps.net/
+- ✅ Azure AI Foundry — pers-engine-foundry (Canada Central)
+- ✅ Cosmos DB — pers-engine-db (serverless, analyses container)
+- ✅ Storage Account — persenginestore
+- ✅ Key Vault — pers-engine-kv
+- ✅ Application Insights — pers-engine-insights
+- ✅ Container Registry — persengineacr.azurecr.io
+- ⬜ Docker image build + push to ACR
+- ⬜ Container Apps — backend deployment
+- ⬜ Azure OpenAI model deployment in Foundry
+- ⬜ Wire backend to Key Vault + Cosmos DB
+- ⬜ Application Insights instrumentation
 
 ## Azure target architecture
 
