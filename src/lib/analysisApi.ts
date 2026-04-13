@@ -2,7 +2,9 @@ import type { AnalysisRequest, AnalysisResponse } from '../types/analysis'
 
 const ANALYSIS_API_URL =
   import.meta.env.VITE_API_URL ??
-  'https://pers-engine-backend.agreeableflower-05a7ca4e.canadacentral.azurecontainerapps.io/api/analyze'
+  (import.meta.env.DEV
+    ? 'http://localhost:3001/api/analyze'
+    : 'https://pers-engine-backend.agreeableflower-05a7ca4e.canadacentral.azurecontainerapps.io/api/analyze')
 
 export async function submitAnalysis(
   request: AnalysisRequest,

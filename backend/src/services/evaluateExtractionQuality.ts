@@ -45,13 +45,26 @@ export function evaluateExtractionQuality(input: {
     .join(' ')
     .toLowerCase()
 
+  // findBodyText strips <noscript> blocks, so JS-disabled messages embedded there
+  // never reach combinedText. Extract noscript text separately from rawHtml.
+  const noscriptText = input.rawHtml
+    ? Array.from(
+        input.rawHtml.matchAll(/<noscript\b[^>]*>([\s\S]*?)<\/noscript>/gi),
+        (m) => (m[1] ?? '').replace(/<[^>]*>/g, ' '),
+      )
+        .join(' ')
+        .toLowerCase()
+    : ''
+
+  const fullText = combinedText + ' ' + noscriptText
+
   if (!input.signals.heroText) {
     warnings.push('Hero text was empty.')
   }
 
   if (
     limitedHeroPhrases.some((phrase) =>
-      combinedText.includes(phrase),
+      fullText.includes(phrase),
     )
   ) {
     warnings.push('Hero text suggests the page may still be a JavaScript shell.')
@@ -70,7 +83,7 @@ export function evaluateExtractionQuality(input: {
   }
 
   const hasBlockedPhrase = blockedPhrases.some((phrase) =>
-    combinedText.includes(phrase),
+    fullText.includes(phrase),
   )
 
   let extractionQuality: AnalysisExtractionQuality = 'good'
