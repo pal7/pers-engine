@@ -83,11 +83,35 @@ infra/AZURE_SETUP.md
 - ✅ Key Vault — pers-engine-kv
 - ✅ Application Insights — pers-engine-insights
 
-### Still to do
-- ⬜ Azure OpenAI integration (replace mock data with real GPT-4o responses)
-- ⬜ Wire detected tech stack into GPT-4o prompt (implementationHint per experiment)
+#### Still to do
+- ⬜ Replace template heuristics with real GPT-5.2 call (read secrets from Key Vault via managed identity)
+- ⬜ Wire detected tech stack into GPT-5.2 prompt (implementationHint per experiment)
 - ⬜ Cosmos DB caching (cache analysis results by URL)
-- ⬜ Key Vault secrets for backend (replace .env with managed identity)
+
+## AI model
+
+| | |
+|---|---|
+| Model | gpt-5.2 |
+| Deployment name | `gpt-5.2` |
+| Endpoint | `https://pers-engine-foundry.cognitiveservices.azure.com/` |
+| Resource | Azure AI Foundry — pers-engine-foundry (Canada Central) |
+
+## Key Vault secrets
+
+Secrets are already created in `pers-engine-kv`. Backend reads them at startup via managed identity — no `.env` needed in prod.
+
+| Secret name | Value |
+|---|---|
+| `azure-openai-endpoint` | `https://pers-engine-foundry.cognitiveservices.azure.com/` |
+| `azure-openai-key` | Azure OpenAI API key |
+| `azure-openai-deployment` | `gpt-5.2` |
+
+## Managed identity
+
+- Container App `pers-engine-backend` has **system-assigned managed identity** enabled
+- **Key Vault Secrets User** role is assigned to that identity on `pers-engine-kv`
+- This means the backend can call `SecretClient` with `DefaultAzureCredential` and read secrets without any API key in the environment
 
 ## Azure target architecture
 

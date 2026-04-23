@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Footer } from './Footer'
 
 interface AppShellProps {
   children: ReactNode
@@ -36,6 +37,7 @@ export function AppShell({
         </div>
       </header>
       <main className="app-shell__content">{children}</main>
+      <Footer />
     </div>
   )
 }

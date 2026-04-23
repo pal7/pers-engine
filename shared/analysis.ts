@@ -48,6 +48,7 @@ export interface AnalysisExperiment {
   metric: string
   impact: string
   confidence: AnalysisConfidence
+  implementationHint?: string
 }
 
 export interface AnalysisEvidence {

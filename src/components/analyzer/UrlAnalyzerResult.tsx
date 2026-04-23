@@ -274,6 +274,12 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
                     <dt className='label'>Metric</dt>
                     <dd>{experiment.metric}</dd>
                   </div>
+                  {experiment.implementationHint ? (
+                    <div className='url-analyzer-result__details-full'>
+                      <dt className='label'>Implementation hint</dt>
+                      <dd>{experiment.implementationHint}</dd>
+                    </div>
+                  ) : null}
                 </dl>
               </article>
             ))}
