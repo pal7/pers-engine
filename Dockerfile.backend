@@ -1,9 +1,13 @@
-FROM node:22-alpine
+FROM node:22-slim
 
 WORKDIR /app
 
 COPY backend/package*.json ./
 RUN npm ci
+
+# Download Chromium and its OS-level dependencies (libnss, libatk, etc.)
+# Must run after npm ci so the playwright package version is known
+RUN npx playwright install chromium --with-deps
 
 COPY backend/src ./src
 COPY shared ./shared
