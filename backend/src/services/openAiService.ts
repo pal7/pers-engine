@@ -66,12 +66,19 @@ function buildUserPrompt(
 ): string {
   const techStackLine =
     techStack.length > 0
-      ? techStack.map((t) => `${t.name} (${t.category})`).join(', ')
+      ? techStack
+          .map((t) => `${t.name} (${t.category}, ${t.confidence} confidence — ${t.evidence})`)
+          .join(', ')
       : 'None detected'
 
   const ctaLine =
     signals.candidateCtaTexts.length > 0
       ? signals.candidateCtaTexts.join(', ')
+      : 'None detected'
+
+  const trustLine =
+    signals.trustSignalKeywords.length > 0
+      ? signals.trustSignalKeywords.join(', ')
       : 'None detected'
 
   const pageTextSample = signals.pageText.slice(0, PAGE_TEXT_LIMIT)
@@ -93,13 +100,20 @@ CTA count: ${evidence.ctaCount}
 Candidate CTAs: ${ctaLine}
 Detected tech stack: ${techStackLine}
 
+PAGE ARCHITECTURE
+Above-fold hero text: ${signals.heroText ?? 'Not detected'}
+Button count: ${signals.buttonCount}
+Anchor/link count: ${signals.anchorCount}
+Form count: ${signals.formCount}
+Trust signal keywords found: ${trustLine}
+
 PAGE CONTENT SAMPLE
 ${pageTextSample}
 
 INSTRUCTIONS
 Return a JSON object with EXACTLY this structure — no markdown fences, no explanation, only the JSON:
 {
-  "summary": "2–3 sentence overview of the page and its biggest conversion opportunity",
+  "summary": "3-4 sentences: what the page is trying to do, who it's for, its biggest conversion opportunity, and one SEO or architectural observation",
   "issues": [
     {
       "id": "<kebab-case-descriptor>",
@@ -114,7 +128,7 @@ Return a JSON object with EXACTLY this structure — no markdown fences, no expl
     {
       "id": "<same-kebab-as-matching-issue>",
       "title": "Experiment title",
-      "hypothesis": "If we [change], we expect [outcome] because [reason grounded in the page signals]",
+      "hypothesis": "If we [specific change referencing page signals], we expect [measurable outcome] because [psychological or architectural reason grounded in observed data]",
       "variant": "Specific description of what to build and test",
       "metric": "Primary metric to measure success",
       "impact": "Expected outcome if the hypothesis is correct",
@@ -124,8 +138,16 @@ Return a JSON object with EXACTLY this structure — no markdown fences, no expl
   ]
 }
 
-Generate 3–5 issues and one experiment per issue.
-${buildImplementationGuidance(techStack)}`
+Generate 4-6 issues ordered by severity, and one experiment per issue.
+${buildImplementationGuidance(techStack)}
+
+ANALYSIS PRIORITIES
+1. Above-fold experience and hero messaging clarity
+2. CTA hierarchy and decision friction
+3. Trust signal placement and specificity
+4. Form friction and progressive disclosure
+5. SEO signals — title tag, H1, meta description alignment
+6. Page architecture — load order, content hierarchy, crawlability`
 }
 
 function coerceConfidence(raw: unknown): 'High' | 'Medium' | 'Low' {
@@ -210,7 +232,18 @@ export async function analyzeWithAI(
       messages: [
         {
           role: 'system',
-          content: 'You are a senior UX and CRO expert. Analyze websites and return only valid JSON.',
+          content: [
+            'You are the world\'s leading conversion rate optimisation and digital marketing specialist, combining deep expertise across:',
+            '- CRO methodology (hypothesis-driven testing, statistical significance, funnel analysis)',
+            '- SEO and organic performance (Core Web Vitals, content hierarchy, crawlability signals)',
+            '- Web architecture and frontend performance (page structure, load patterns, JS rendering impact)',
+            '- Consumer and B2B psychology (trust signals, cognitive load, decision friction, social proof)',
+            '- Personalisation and segmentation (audience-specific messaging, intent detection, progressive disclosure)',
+            '',
+            'You analyse real websites and return precise, actionable insights grounded in what you can actually observe on the page. You never generate generic advice. Every issue and experiment must reference specific signals from the page data provided.',
+            '',
+            'Return only valid JSON matching the exact structure specified. No markdown, no explanation, no preamble.',
+          ].join('\n'),
         },
         {
           role: 'user',

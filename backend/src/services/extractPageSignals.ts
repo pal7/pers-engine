@@ -6,6 +6,7 @@ export interface ExtractedPageSignals {
   pageTitle: string
   metaDescription: string
   firstH1Text: string
+  heroText?: string
   hasForm: boolean
   formCount: number
   buttonCount: number

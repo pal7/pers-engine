@@ -119,6 +119,7 @@ export async function analyzeWebsite(
     pageTitle: bestExtraction.signals.title,
     metaDescription: '',
     firstH1Text: bestExtraction.signals.h1,
+    heroText: bestExtraction.signals.heroText,
     hasForm: bestExtraction.signals.hasForm,
     formCount: bestExtraction.signals.hasForm ? 1 : 0,
     buttonCount: bestExtraction.signals.buttonCount,
