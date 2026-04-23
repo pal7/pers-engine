@@ -4,9 +4,11 @@ import { extractHtmlSignals } from './services/extractHtmlSignals'
 import { extractRenderedSignals } from './services/extractRenderedSignals'
 import { generateExperiments } from './services/generateExperiments'
 import { generateIssues } from './services/generateIssues'
+import { analyzeWithAI } from './services/openAiService'
 import type { ExtractedPageSignals } from './services/extractPageSignals'
 import type {
   AnalysisEvidence,
+  AnalysisExperiment,
   AnalysisIssue,
   AnalysisRequest,
   AnalysisResponse,
@@ -138,9 +140,23 @@ export async function analyzeWebsite(
   // Optimizely feature flag, etc.)
 
   const evidence = buildEvidence(adaptedSignals)
-  const issues = generateIssues(evidence, adaptedSignals)
-  const experiments = generateExperiments(issues, evidence)
-  const summary = buildSummary(hostname, evidence, issues)
+
+  let issues: AnalysisIssue[]
+  let experiments: AnalysisExperiment[]
+  let summary: string
+
+  if (process.env.AZURE_OPENAI_KEY) {
+    console.log('[analyze] Using GPT-5.2 for analysis')
+    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack)
+    issues = aiResult.issues
+    experiments = aiResult.experiments
+    summary = aiResult.summary
+  } else {
+    console.warn('[analyze] AZURE_OPENAI_KEY not set, using template fallback')
+    issues = generateIssues(evidence, adaptedSignals)
+    experiments = generateExperiments(issues, evidence)
+    summary = buildSummary(hostname, evidence, issues)
+  }
   const extractionWarnings = Array.from(
     new Set([
       ...bestExtraction.extractionWarnings,
