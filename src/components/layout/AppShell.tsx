@@ -7,6 +7,7 @@ interface AppShellProps {
   subtitle?: string
   primaryActions?: ReactNode
   overline?: string
+  hideHeader?: boolean
 }
 
 export function AppShell({
@@ -16,27 +17,30 @@ export function AppShell({
     'Review experiments, audiences, and outcomes from one frontend-only MVP view.',
   primaryActions,
   overline = 'Experimentation admin',
+  hideHeader = false,
 }: AppShellProps) {
   return (
     <div className="app-shell">
-      <header className="app-shell__header">
-        <div className="app-shell__header-copy">
-          <p className="app-shell__eyebrow">{overline}</p>
-          <h1>{productName}</h1>
-          <p className="app-shell__subtitle">{subtitle}</p>
-        </div>
-        <div className="app-shell__actions">
-          {primaryActions ?? (
-            <>
-              <span className="badge badge--neutral">Frontend only</span>
-              <button className="button button--primary" type="button">
-                New experiment
-              </button>
-            </>
-          )}
-        </div>
-      </header>
-      <main className="app-shell__content">{children}</main>
+      {!hideHeader && (
+        <header className="app-shell__header">
+          <div className="app-shell__header-copy">
+            <p className="app-shell__eyebrow">{overline}</p>
+            <h1>{productName}</h1>
+            <p className="app-shell__subtitle">{subtitle}</p>
+          </div>
+          <div className="app-shell__actions">
+            {primaryActions ?? (
+              <>
+                <span className="badge badge--neutral">Frontend only</span>
+                <button className="button button--primary" type="button">
+                  New experiment
+                </button>
+              </>
+            )}
+          </div>
+        </header>
+      )}
+      <main className={`app-shell__content${hideHeader ? ' app-shell__content--no-header' : ''}`}>{children}</main>
       <Footer />
     </div>
   )
