@@ -28,9 +28,12 @@ export function UrlAnalyzerPage() {
 
     const intervalId = window.setInterval(() => {
       setCurrentStepIndex((currentIndex) =>
-        Math.min(currentIndex + 1, analysisProgressSteps.length - 1),
+        // Advance through first 3 steps automatically; hold on step 4 until response arrives
+        currentIndex < analysisProgressSteps.length - 2
+          ? currentIndex + 1
+          : analysisProgressSteps.length - 1,
       )
-    }, 300)
+    }, 2800)
 
     return () => {
       window.clearInterval(intervalId)
@@ -76,6 +79,7 @@ export function UrlAnalyzerPage() {
           currentStepIndex={status === 'loading' ? currentStepIndex : undefined}
           errorMessage={errorMessage}
           status={status}
+          steps={status === 'loading' ? analysisProgressSteps : undefined}
           totalSteps={status === 'loading' ? analysisProgressSteps.length : undefined}
         />
         {result ? <UrlAnalyzerResult result={result} /> : null}
