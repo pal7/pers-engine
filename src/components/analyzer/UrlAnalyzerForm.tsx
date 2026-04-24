@@ -41,6 +41,7 @@ export function UrlAnalyzerForm({
       <form className="hero-input__form" onSubmit={handleSubmit}>
         <div className="hero-input__row">
           <input
+            aria-label="Website URL"
             autoComplete="url"
             className="hero-input__field"
             id="website-url"

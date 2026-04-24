@@ -134,12 +134,6 @@ export async function analyzeWebsite(
 
   const techStack = detectTechStack(bestExtraction.rawHtml)
 
-  // TODO: When OpenAI is wired up, append to prompt:
-  // `Detected tech stack: ${techStack.map(t => t.name).join(', ')}`
-  // For each experiment suggestion, add an implementationHint field explaining
-  // how to implement it using the detected tools (e.g. Adobe Target XT activity,
-  // Optimizely feature flag, etc.)
-
   const evidence = buildEvidence(adaptedSignals)
 
   let issues: AnalysisIssue[]
