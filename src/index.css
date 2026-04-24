@@ -139,6 +139,10 @@ strong {
   margin-top: 24px;
 }
 
+.app-shell__content--no-header {
+  margin-top: 0;
+}
+
 .workbench-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -875,6 +879,107 @@ strong {
   margin-bottom: 8px;
 }
 
+.hero-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 64px 24px 48px;
+}
+
+.hero-input__eyebrow {
+  margin-bottom: 16px;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero-input__title {
+  margin-bottom: 40px;
+  font-size: clamp(2.4rem, 6vw, 4.4rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-input__form {
+  width: 100%;
+  max-width: 680px;
+}
+
+.hero-input__row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.hero-input__field {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 58px;
+  padding: 0 20px;
+  font-size: 1.05rem;
+  border: 1.5px solid rgba(20, 184, 166, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.7);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.hero-input__field::placeholder {
+  color: var(--text-muted);
+}
+
+.hero-input__field:focus {
+  border-color: rgba(20, 184, 166, 0.55);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
+}
+
+.hero-input__cta {
+  height: 58px;
+  padding: 0 28px;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+  color: #f8fafc;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.12s;
+}
+
+.hero-input__cta:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.hero-input__cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hero-input__validation {
+  margin-top: 10px;
+  font-size: 0.92rem;
+  color: #fbbf24;
+  text-align: left;
+}
+
+.hero-input__tagline {
+  margin-top: 20px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
 .url-analyzer-page,
 .url-analyzer-result,
 .url-analyzer-result__section {
@@ -882,48 +987,6 @@ strong {
   gap: 24px;
 }
 
-.url-analyzer-form {
-  display: grid;
-  gap: 16px;
-}
-
-.url-analyzer-form__entry {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid rgba(20, 184, 166, 0.16);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.03) 100%);
-}
-
-.url-analyzer-form__field input {
-  min-height: 56px;
-  padding-inline: 16px;
-  font-size: 1rem;
-  border-color: rgba(20, 184, 166, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  background: rgba(15, 23, 42, 0.5);
-  color: var(--text);
-}
-
-.url-analyzer-form__field input:focus {
-  outline: 2px solid rgba(20, 184, 166, 0.3);
-  outline-offset: 2px;
-}
-
-.url-analyzer-form__meta {
-  display: grid;
-  gap: 6px;
-  min-width: min(100%, 480px);
-}
-
-.url-analyzer-form__hint,
-.url-analyzer-form__meta .label {
-  overflow-wrap: anywhere;
-}
-
-.url-analyzer-form__hint,
-.url-analyzer-form__validation,
 .url-analyzer-result__hero p,
 .url-analyzer-result__card p,
 .url-analyzer-result__section-header p,
@@ -931,17 +994,6 @@ strong {
 .url-analyzer-status p {
   color: var(--text-muted);
   line-height: 1.55;
-}
-
-.url-analyzer-form__hint {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.url-analyzer-form__validation {
-  margin-top: -2px;
-  padding: 0 4px;
-  color: #fbbf24;
 }
 
 .url-analyzer-status {
@@ -1005,14 +1057,6 @@ strong {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-}
-
-.url-analyzer-form__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -1227,22 +1271,9 @@ strong {
     width: 100%;
   }
 
-  .url-analyzer-form__actions {
-    align-items: stretch;
-  }
-
-  .url-analyzer-form__entry,
   .url-analyzer-result__hero,
   .url-analyzer-result__card {
     padding: 18px;
-  }
-
-  .url-analyzer-form__meta {
-    min-width: 0;
-  }
-
-  .url-analyzer-form__actions .button {
-    width: 100%;
   }
 
   .url-analyzer-result__details {

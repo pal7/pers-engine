@@ -136,3 +136,8 @@ Secrets: Key Vault via managed identity — no .env in prod.
 ## Repo
 
 github.com/pal7/pers-engine
+
+## Active branch
+
+- `main` — stable, deployed to Azure
+- `feature/v2-openai-integration` — **current V2 work** (GPT-5.2 integration, Key Vault secrets)

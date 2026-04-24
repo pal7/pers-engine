@@ -34,59 +34,41 @@ export function UrlAnalyzerForm({
   }
 
   return (
-    <section className="panel">
-      <div className="panel__header">
-        <div>
-          <h2>Start with a live URL</h2>
-          <p>
-            Paste a page you want to review and we will return an initial read on
-            messaging, trust, and experimentation opportunities.
-          </p>
-        </div>
-      </div>
+    <section className="hero-input">
+      <p className="hero-input__eyebrow">Personalization Engine</p>
+      <h1 className="hero-input__title">Analyse any website</h1>
 
-      <form className="url-analyzer-form" onSubmit={handleSubmit}>
-        <div className="url-analyzer-form__entry">
-          <label className="field url-analyzer-form__field" htmlFor="website-url">
-            <span>Website URL</span>
-            <input
-              autoComplete="url"
-              id="website-url"
-              onChange={(event) => onChange(event.target.value)}
-              placeholder="example.com/pricing"
-              type="text"
-              value={value}
-            />
-          </label>
-
-          <div className="url-analyzer-form__actions">
-            <button
-              className="button button--primary"
-              disabled={status === 'loading' || !isValid}
-              type="submit"
-            >
-              {status === 'loading' ? 'Analyzing...' : 'Run analysis'}
-            </button>
-
-            <div className="url-analyzer-form__meta">
-              <span className="label">Request preview</span>
-              {normalizedUrl ? (
-                <p className="url-analyzer-form__hint">{normalizedUrl}</p>
-              ) : (
-                <p className="url-analyzer-form__hint">
-                  We automatically add `https://` when the protocol is missing.
-                </p>
-              )}
-            </div>
-          </div>
+      <form className="hero-input__form" onSubmit={handleSubmit}>
+        <div className="hero-input__row">
+          <input
+            aria-label="Website URL"
+            autoComplete="url"
+            className="hero-input__field"
+            id="website-url"
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="Enter any website URL to analyse"
+            type="text"
+            value={value}
+          />
+          <button
+            className="hero-input__cta button button--primary"
+            disabled={status === 'loading' || !isValid}
+            type="submit"
+          >
+            {status === 'loading' ? 'Analysing…' : 'Analyse'}
+          </button>
         </div>
 
         {validationMessage ? (
-          <p className="url-analyzer-form__validation" role="alert">
+          <p className="hero-input__validation" role="alert">
             {validationMessage}
           </p>
         ) : null}
       </form>
+
+      <p className="hero-input__tagline">
+        Detects tech stack · Identifies UX issues · Generates A/B experiments
+      </p>
     </section>
   )
 }

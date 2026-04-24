@@ -61,12 +61,7 @@ export function UrlAnalyzerPage() {
   }
 
   return (
-    <AppShell
-      overline="Website personalization analyzer"
-      productName="Website Personalization Analyzer"
-      subtitle="Run a lightweight first-pass analysis on any live website and surface clear personalization opportunities, friction points, and next-test ideas in one focused view."
-      primaryActions={<span className="badge badge--neutral">Rendered extraction enabled</span>}
-    >
+    <AppShell hideHeader>
       <div className="url-analyzer-page">
         <UrlAnalyzerForm
           onChange={setRawUrl}
