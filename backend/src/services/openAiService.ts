@@ -221,6 +221,7 @@ export async function analyzeWithAI(
     apiKey,
     deployment,
     apiVersion: '2025-01-01-preview',
+    timeout: 30_000,
   })
 
   let rawJson: string

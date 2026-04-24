@@ -987,48 +987,6 @@ strong {
   gap: 24px;
 }
 
-.url-analyzer-form {
-  display: grid;
-  gap: 16px;
-}
-
-.url-analyzer-form__entry {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid rgba(20, 184, 166, 0.16);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.03) 100%);
-}
-
-.url-analyzer-form__field input {
-  min-height: 56px;
-  padding-inline: 16px;
-  font-size: 1rem;
-  border-color: rgba(20, 184, 166, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  background: rgba(15, 23, 42, 0.5);
-  color: var(--text);
-}
-
-.url-analyzer-form__field input:focus {
-  outline: 2px solid rgba(20, 184, 166, 0.3);
-  outline-offset: 2px;
-}
-
-.url-analyzer-form__meta {
-  display: grid;
-  gap: 6px;
-  min-width: min(100%, 480px);
-}
-
-.url-analyzer-form__hint,
-.url-analyzer-form__meta .label {
-  overflow-wrap: anywhere;
-}
-
-.url-analyzer-form__hint,
-.url-analyzer-form__validation,
 .url-analyzer-result__hero p,
 .url-analyzer-result__card p,
 .url-analyzer-result__section-header p,
@@ -1036,17 +994,6 @@ strong {
 .url-analyzer-status p {
   color: var(--text-muted);
   line-height: 1.55;
-}
-
-.url-analyzer-form__hint {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.url-analyzer-form__validation {
-  margin-top: -2px;
-  padding: 0 4px;
-  color: #fbbf24;
 }
 
 .url-analyzer-status {
@@ -1110,14 +1057,6 @@ strong {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-}
-
-.url-analyzer-form__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -1332,22 +1271,9 @@ strong {
     width: 100%;
   }
 
-  .url-analyzer-form__actions {
-    align-items: stretch;
-  }
-
-  .url-analyzer-form__entry,
   .url-analyzer-result__hero,
   .url-analyzer-result__card {
     padding: 18px;
-  }
-
-  .url-analyzer-form__meta {
-    min-width: 0;
-  }
-
-  .url-analyzer-form__actions .button {
-    width: 100%;
   }
 
   .url-analyzer-result__details {

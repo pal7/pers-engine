@@ -33,7 +33,9 @@ jobs:
           context: .
           file: Dockerfile.backend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}
 
       - name: Log in to Azure
         uses: azure/login@v2
@@ -48,4 +50,4 @@ jobs:
             az containerapp update \
               --name pers-engine-backend \
               --resource-group pers-engine-rg \
-              --image ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+              --image ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}
