@@ -1,0 +1,14 @@
+{
+  "type": "module",
+  "scripts": {
+    "create-index": "tsx --env-file .env createSearchIndex.ts",
+    "seed": "tsx --env-file .env seedPipeline.ts"
+  },
+  "dependencies": {
+    "@azure/search-documents": "^12.0.0",
+    "openai": "^6.34.0",
+    "p-limit": "^5.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
