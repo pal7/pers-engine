@@ -27,7 +27,7 @@ export interface DetectedTech {
   evidence: string
 }
 export type AnalysisConfidence = 'High' | 'Medium' | 'Low'
-export type AnalysisPageType = 'ecommerce' | 'travel' | 'saas'
+export type AnalysisPageType = 'ecommerce' | 'travel' | 'saas' | 'finance' | 'healthcare' | 'general'
 export type AnalysisExtractionMode = 'html' | 'browser'
 export type AnalysisExtractionQuality = 'good' | 'limited' | 'blocked'
 
@@ -90,7 +90,22 @@ export interface AnalysisResponse {
   extractionWarnings: string[]
   extractedSignals: AnalysisExtractedSignals
   issues: AnalysisIssue[]
-  experiments: AnalysisExperiment[]
+  experiments?: AnalysisExperiment[]
   techStack: DetectedTech[]
   debug?: AnalysisDebugData
+}
+
+export interface ExperimentRequest {
+  issues: AnalysisIssue[]
+  techStack: DetectedTech[]
+  evidence: AnalysisEvidence
+  pageContext: {
+    url: string
+    summary: string
+    pageType: AnalysisPageType
+    heroText: string
+    ctaTexts: string[]
+    pageText: string
+    trustSignalKeywords: string[]
+  }
 }

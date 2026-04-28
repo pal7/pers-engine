@@ -1,7 +1,6 @@
 import { AzureOpenAI } from 'openai/azure'
 import type {
   AnalysisEvidence,
-  AnalysisExperiment,
   AnalysisIssue,
   DetectedTech,
 } from '../../../shared/analysis.ts'
@@ -19,21 +18,9 @@ interface RawIssue {
   confidence?: unknown
 }
 
-interface RawExperiment {
-  id?: unknown
-  title?: unknown
-  hypothesis?: unknown
-  variant?: unknown
-  metric?: unknown
-  impact?: unknown
-  confidence?: unknown
-  implementationHint?: unknown
-}
-
 interface RawAiResponse {
   summary?: unknown
   issues?: unknown
-  experiments?: unknown
 }
 
 function getCategoryContext(pageType: string): string {
@@ -51,28 +38,6 @@ function getCategoryContext(pageType: string): string {
   }
 }
 
-function buildImplementationGuidance(techStack: DetectedTech[]): string {
-  const names = techStack.map((t) => t.name)
-  const lines: string[] = []
-
-  if (names.includes('Adobe Target')) {
-    lines.push(
-      'For any experiment that can be delivered via Adobe Target, set implementationHint to a concrete description of the Target XT (Experience Targeting) or A/B activity to create, including which mbox or VEC selector to use.',
-    )
-  }
-
-  if (names.includes('Optimizely')) {
-    lines.push(
-      'For any experiment that can be delivered via Optimizely, set implementationHint to a concrete description of the Optimizely feature flag or A/B experiment to configure, including the variation key and metric event name.',
-    )
-  }
-
-  if (lines.length === 0) {
-    return 'Omit the implementationHint field from all experiments.'
-  }
-
-  return lines.join('\n')
-}
 
 function buildUserPrompt(
   signals: ExtractedPageSignals,
@@ -147,23 +112,11 @@ Return a JSON object with EXACTLY this structure — no markdown fences, no expl
       "impact": "Expected impact if addressed",
       "confidence": "High" | "Medium" | "Low"
     }
-  ],
-  "experiments": [
-    {
-      "id": "<same-kebab-as-matching-issue>",
-      "title": "Experiment title",
-      "hypothesis": "If we [specific change referencing page signals], we expect [measurable outcome] because [psychological or architectural reason grounded in observed data]",
-      "variant": "Specific description of what to build and test",
-      "metric": "Specific measurable metric — not 'engagement' but 'primary CTA click rate', 'form completion rate', 'scroll depth past fold'",
-      "impact": "Expected outcome if the hypothesis is correct",
-      "confidence": "High" | "Medium" | "Low",
-      "implementationHint": "..."
-    }
   ]
 }
 
-Generate exactly 4 issues ordered by severity, and one experiment per issue.
-${buildImplementationGuidance(techStack)}`
+Generate exactly 4 issues ordered by severity.
+Do not generate experiments — those are handled separately.`
 }
 
 function coerceConfidence(raw: unknown): 'High' | 'Medium' | 'Low' {
@@ -189,33 +142,11 @@ function parseIssues(raw: unknown): AnalysisIssue[] {
   })) as AnalysisIssue[]
 }
 
-function parseExperiments(raw: unknown): AnalysisExperiment[] {
-  if (!Array.isArray(raw)) return []
-
-  return (raw as RawExperiment[]).map((item, index) => {
-    const experiment: AnalysisExperiment = {
-      id: typeof item.id === 'string' && item.id ? item.id : `experiment-${index + 1}`,
-      title: typeof item.title === 'string' ? item.title : 'Untitled experiment',
-      hypothesis: typeof item.hypothesis === 'string' ? item.hypothesis : '',
-      variant: typeof item.variant === 'string' ? item.variant : '',
-      metric: typeof item.metric === 'string' ? item.metric : '',
-      impact: typeof item.impact === 'string' ? item.impact : '',
-      confidence: coerceConfidence(item.confidence),
-    }
-
-    if (typeof item.implementationHint === 'string' && item.implementationHint) {
-      experiment.implementationHint = item.implementationHint
-    }
-
-    return experiment
-  })
-}
-
 export async function analyzeWithAI(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
-): Promise<{ summary: string; issues: AnalysisIssue[]; experiments: AnalysisExperiment[] }> {
+): Promise<{ summary: string; issues: AnalysisIssue[] }> {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_KEY
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-5.2'
@@ -285,7 +216,6 @@ export async function analyzeWithAI(
 
   const summary = typeof parsed.summary === 'string' ? parsed.summary : ''
   const issues = parseIssues(parsed.issues)
-  const experiments = parseExperiments(parsed.experiments)
 
-  return { summary, issues, experiments }
+  return { summary, issues }
 }

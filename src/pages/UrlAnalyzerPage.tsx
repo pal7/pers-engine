@@ -3,15 +3,16 @@ import { UrlAnalyzerForm } from '../components/analyzer/UrlAnalyzerForm'
 import { UrlAnalyzerResult } from '../components/analyzer/UrlAnalyzerResult'
 import { UrlAnalyzerStatus } from '../components/analyzer/UrlAnalyzerStatus'
 import { AppShell } from '../components/layout/AppShell'
-import { submitAnalysis } from '../lib/analysisApi'
-import type { AnalysisResponse, AnalysisStatus } from '../types/analysis'
+import { submitAnalysis, submitExperiments } from '../lib/analysisApi'
+import type { AnalysisExperiment, AnalysisResponse, AnalysisStatus } from '../types/analysis'
 
 const analysisProgressSteps = [
   'Validating website URL',
   'Capturing page structure',
   'Reviewing conversion signals',
-  'Generating experiment suggestions',
 ]
+
+type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export function UrlAnalyzerPage() {
   const [rawUrl, setRawUrl] = useState('')
@@ -19,16 +20,16 @@ export function UrlAnalyzerPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [result, setResult] = useState<AnalysisResponse | null>(null)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>('idle')
+  const [experiments, setExperiments] = useState<AnalysisExperiment[] | null>(null)
 
   useEffect(() => {
     if (status !== 'loading') {
       return
     }
 
-
     const intervalId = window.setInterval(() => {
       setCurrentStepIndex((currentIndex) =>
-        // Advance through first 3 steps automatically; hold on step 4 until response arrives
         currentIndex < analysisProgressSteps.length - 2
           ? currentIndex + 1
           : analysisProgressSteps.length - 1,
@@ -45,11 +46,14 @@ export function UrlAnalyzerPage() {
     setStatus('loading')
     setErrorMessage('')
     setResult(null)
+    setExperiments(null)
+    setExperimentStatus('idle')
 
     try {
       const response = await submitAnalysis({ url: normalizedUrl })
       setResult(response)
       setStatus('success')
+      setExperimentStatus('idle')
     } catch (error) {
       setStatus('error')
       setErrorMessage(
@@ -57,6 +61,32 @@ export function UrlAnalyzerPage() {
           ? error.message
           : 'Something went wrong while analyzing that website.',
       )
+    }
+  }
+
+  const handleGenerateExperiments = async () => {
+    if (!result) return
+    setExperimentStatus('loading')
+
+    try {
+      const response = await submitExperiments({
+        issues: result.issues,
+        techStack: result.techStack,
+        evidence: result.evidence,
+        pageContext: {
+          url: result.analyzedUrl,
+          summary: result.summary,
+          pageType: result.evidence.pageType,
+          heroText: result.evidence.heroText,
+          ctaTexts: result.extractedSignals.ctaTexts,
+          pageText: '',
+          trustSignalKeywords: [],
+        },
+      })
+      setExperiments(response.experiments)
+      setExperimentStatus('success')
+    } catch (error) {
+      setExperimentStatus('error')
     }
   }
 
@@ -77,7 +107,14 @@ export function UrlAnalyzerPage() {
           steps={status === 'loading' ? analysisProgressSteps : undefined}
           totalSteps={status === 'loading' ? analysisProgressSteps.length : undefined}
         />
-        {result ? <UrlAnalyzerResult result={result} /> : null}
+        {result ? (
+          <UrlAnalyzerResult
+            result={result}
+            experimentStatus={experimentStatus}
+            experiments={experiments}
+            onGenerateExperiments={handleGenerateExperiments}
+          />
+        ) : null}
       </div>
     </AppShell>
   )

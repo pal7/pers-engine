@@ -1,8 +1,9 @@
 import cors from "cors";
 import express from "express";
 import { analyzeWebsite } from "./analysisService";
+import { generateExperimentsWithAI } from "./services/experimentService";
 import { AnalysisServiceError } from "./services/analysisError";
-import type { AnalysisRequest } from "../../shared/analysis.ts";
+import type { AnalysisRequest, ExperimentRequest } from "../../shared/analysis.ts";
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
@@ -44,6 +45,32 @@ app.post("/api/analyze", async (request, response) => {
         error instanceof Error
           ? error.message
           : "We could not prepare the analysis request for that website.",
+    });
+  }
+});
+
+app.post("/api/experiments", async (request, response) => {
+  const body = request.body as Partial<ExperimentRequest> | undefined;
+
+  if (!Array.isArray(body?.issues) || body.issues.length === 0) {
+    response.status(400).json({ message: "issues[] is required." });
+    return;
+  }
+
+  if (!Array.isArray(body?.techStack)) {
+    response.status(400).json({ message: "techStack[] is required." });
+    return;
+  }
+
+  try {
+    const experiments = await generateExperimentsWithAI(body as ExperimentRequest);
+    response.json({ experiments });
+  } catch (error) {
+    response.status(500).json({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Could not generate experiment suggestions.",
     });
   }
 });

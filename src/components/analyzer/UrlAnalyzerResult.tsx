@@ -1,7 +1,12 @@
-import type { AnalysisResponse, TechStackCategory } from "../../types/analysis";
+import type { AnalysisExperiment, AnalysisResponse, TechStackCategory } from "../../types/analysis";
+
+type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
 
 interface UrlAnalyzerResultProps {
   result: AnalysisResponse;
+  experimentStatus: ExperimentStatus;
+  experiments: AnalysisExperiment[] | null;
+  onGenerateExperiments: () => void;
 }
 
 const CATEGORY_LABELS: Record<TechStackCategory, string> = {
@@ -17,7 +22,7 @@ const CATEGORY_LABELS: Record<TechStackCategory, string> = {
   crm: 'CRM',
 }
 
-export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
+export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGenerateExperiments }: UrlAnalyzerResultProps) {
   const debugData = result.debug;
 
   return (
@@ -249,41 +254,65 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
             </p>
           </div>
 
-          <div className='url-analyzer-result__grid'>
-            {result.experiments.map((experiment) => (
-              <article
-                className='url-analyzer-result__card'
-                key={experiment.id}
-              >
-                <strong>{experiment.title}</strong>
-                <p>{experiment.hypothesis}</p>
-                <dl className='url-analyzer-result__details'>
-                  <div>
-                    <dt className='label'>Impact</dt>
-                    <dd>{experiment.impact}</dd>
-                  </div>
-                  <div>
-                    <dt className='label'>Confidence</dt>
-                    <dd>{experiment.confidence}</dd>
-                  </div>
-                  <div>
-                    <dt className='label'>Variant</dt>
-                    <dd>{experiment.variant}</dd>
-                  </div>
-                  <div className='url-analyzer-result__details-full'>
-                    <dt className='label'>Metric</dt>
-                    <dd>{experiment.metric}</dd>
-                  </div>
-                  {experiment.implementationHint ? (
-                    <div className='url-analyzer-result__details-full'>
-                      <dt className='label'>Implementation hint</dt>
-                      <dd>{experiment.implementationHint}</dd>
+          {experimentStatus === 'idle' && (
+            <button
+              className='btn btn--primary'
+              onClick={onGenerateExperiments}
+              type='button'
+            >
+              Generate experiment suggestions
+            </button>
+          )}
+
+          {experimentStatus === 'loading' && (
+            <p className='url-analyzer-result__experiments-status'>
+              Generating experiment suggestions…
+            </p>
+          )}
+
+          {experimentStatus === 'error' && (
+            <p className='url-analyzer-result__experiments-status url-analyzer-result__experiments-status--error'>
+              Could not generate experiment suggestions. Please try again.
+            </p>
+          )}
+
+          {experimentStatus === 'success' && experiments && (
+            <div className='url-analyzer-result__grid'>
+              {experiments.map((experiment) => (
+                <article
+                  className='url-analyzer-result__card'
+                  key={experiment.id}
+                >
+                  <strong>{experiment.title}</strong>
+                  <p>{experiment.hypothesis}</p>
+                  <dl className='url-analyzer-result__details'>
+                    <div>
+                      <dt className='label'>Impact</dt>
+                      <dd>{experiment.impact}</dd>
                     </div>
-                  ) : null}
-                </dl>
-              </article>
-            ))}
-          </div>
+                    <div>
+                      <dt className='label'>Confidence</dt>
+                      <dd>{experiment.confidence}</dd>
+                    </div>
+                    <div>
+                      <dt className='label'>Variant</dt>
+                      <dd>{experiment.variant}</dd>
+                    </div>
+                    <div className='url-analyzer-result__details-full'>
+                      <dt className='label'>Metric</dt>
+                      <dd>{experiment.metric}</dd>
+                    </div>
+                    {experiment.implementationHint ? (
+                      <div className='url-analyzer-result__details-full'>
+                        <dt className='label'>Implementation hint</dt>
+                        <dd>{experiment.implementationHint}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </section>
