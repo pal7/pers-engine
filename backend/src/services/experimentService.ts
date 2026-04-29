@@ -247,6 +247,7 @@ export async function generateExperimentsWithAI(
       model: deployment,
       tools,
       tool_choice: 'required',
+      max_completion_tokens: 1024,
       messages: [
         {
           role: 'system',

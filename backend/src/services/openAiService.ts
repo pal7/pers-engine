@@ -177,6 +177,7 @@ export async function analyzeWithAI(
     const completion = await client.chat.completions.create({
       model: deployment,
       response_format: { type: 'json_object' },
+      max_completion_tokens: 2048,
       messages: [
         {
           role: 'system',
