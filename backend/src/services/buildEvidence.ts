@@ -1,42 +1,49 @@
 import type { AnalysisEvidence, AnalysisPageType } from '../../../shared/analysis.ts'
 import type { ExtractedPageSignals } from './extractPageSignals'
 
-const ecommerceKeywords = [
-  'add to cart',
-  'cart',
-  'checkout',
-  'free shipping',
-  'product',
-  'sale',
-  'shop',
-  'size',
+const PAGE_TYPE_RULES: Array<{ type: AnalysisPageType; keywords: string[] }> = [
+  {
+    type: 'ecommerce',
+    keywords: [
+      'add to cart', 'buy now', 'shop', 'checkout', 'product', 'shipping',
+      'order', 'cart', 'store', 'collection', 'sale', 'discount', 'returns',
+      'free shipping', 'size',
+    ],
+  },
+  {
+    type: 'travel',
+    keywords: [
+      'book', 'hotel', 'flight', 'check-in', 'check-out', 'nights',
+      'destination', 'travel', 'trip', 'vacation', 'resort', 'airline',
+      'rental car', 'cruise', 'guests', 'reservation', 'stay',
+    ],
+  },
+  {
+    type: 'saas',
+    keywords: [
+      'dashboard', 'workspace', 'integrations', 'api', 'free trial', 'pricing',
+      'features', 'collaborate', 'productivity', 'workflow', 'automate',
+      'platform', 'software', 'app', 'tool', 'signin', 'login', 'signup',
+      'demo', 'integration', 'sign up', 'start free',
+    ],
+  },
+  {
+    type: 'finance',
+    keywords: [
+      'invest', 'portfolio', 'banking', 'transfer', 'account balance',
+      'mortgage', 'loan', 'credit', 'savings', 'trading', 'stocks', 'etf',
+      'wealthsimple', 'insurance', 'premium', 'coverage', 'quote',
+    ],
+  },
+  {
+    type: 'healthcare',
+    keywords: [
+      'appointment', 'doctor', 'patient', 'clinic', 'prescription',
+      'telehealth', 'symptoms', 'diagnosis', 'health', 'medical', 'therapy',
+      'mental health',
+    ],
+  },
 ]
-const travelKeywords = [
-  'book',
-  'destination',
-  'flight',
-  'guests',
-  'hotel',
-  'reservation',
-  'stay',
-  'trip',
-]
-const saasKeywords = [
-  'api',
-  'demo',
-  'integration',
-  'platform',
-  'sign up',
-  'software',
-  'start free',
-  'workspace',
-]
-
-const scoreKeywords = (haystack: string, keywords: string[]) =>
-  keywords.reduce(
-    (score, keyword) => (haystack.includes(keyword) ? score + 1 : score),
-    0,
-  )
 
 const detectPageType = (signals: ExtractedPageSignals): AnalysisPageType => {
   const keywordCorpus = [
@@ -50,17 +57,21 @@ const detectPageType = (signals: ExtractedPageSignals): AnalysisPageType => {
     .join(' ')
     .toLowerCase()
 
-  const pageTypeScores: Record<AnalysisPageType, number> = {
-    ecommerce: scoreKeywords(keywordCorpus, ecommerceKeywords),
-    travel: scoreKeywords(keywordCorpus, travelKeywords),
-    saas: scoreKeywords(keywordCorpus, saasKeywords),
+  let bestType: AnalysisPageType = 'general'
+  let bestScore = 0
+
+  for (const { type, keywords } of PAGE_TYPE_RULES) {
+    const score = keywords.reduce(
+      (s, keyword) => (keywordCorpus.includes(keyword) ? s + 1 : s),
+      0,
+    )
+    if (score > bestScore) {
+      bestScore = score
+      bestType = type
+    }
   }
 
-  const strongestMatch = (Object.entries(pageTypeScores) as Array<
-    [AnalysisPageType, number]
-  >).sort((left, right) => right[1] - left[1])[0]
-
-  return strongestMatch && strongestMatch[1] > 0 ? strongestMatch[0] : 'saas'
+  return bestType
 }
 
 const buildHeroText = (signals: ExtractedPageSignals) => {

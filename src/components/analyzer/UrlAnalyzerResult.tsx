@@ -1,7 +1,14 @@
-import type { AnalysisResponse, TechStackCategory } from "../../types/analysis";
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import type { AnalysisExperiment, AnalysisResponse, TechStackCategory } from "../../types/analysis";
+
+type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
 
 interface UrlAnalyzerResultProps {
   result: AnalysisResponse;
+  experimentStatus: ExperimentStatus;
+  experiments: AnalysisExperiment[] | null;
+  onGenerateExperiments: () => void;
 }
 
 const CATEGORY_LABELS: Record<TechStackCategory, string> = {
@@ -17,7 +24,8 @@ const CATEGORY_LABELS: Record<TechStackCategory, string> = {
   crm: 'CRM',
 }
 
-export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
+export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGenerateExperiments }: UrlAnalyzerResultProps) {
+  const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null)
   const debugData = result.debug;
 
   return (
@@ -66,10 +74,7 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
         >
           <div className='url-analyzer-result__section-header'>
             <h3 id='analysis-evidence-title'>Observed evidence</h3>
-            <p>
-              Extracted page signals used to generate issues and experiment
-              ideas.
-            </p>
+            <p>Extracted page signals used to generate issues and experiment ideas.</p>
           </div>
 
           <article className='url-analyzer-result__card'>
@@ -125,20 +130,14 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
           </div>
 
           {result.techStack.length > 0 ? (
-            <div className='tech-stack-grid'>
+            <div className='tech-stack-pills'>
               {result.techStack.map((tech) => (
-                <article key={tech.name} className='tech-stack-chip'>
-                  <div className='tech-stack-chip__header'>
-                    <span className='tech-stack-chip__name'>{tech.name}</span>
-                    <span className={`badge tech-stack-chip__badge--${tech.category}`}>
-                      {CATEGORY_LABELS[tech.category]}
-                    </span>
-                  </div>
-                  <p className='tech-stack-chip__evidence'>{tech.evidence}</p>
-                  <span className={`tech-stack-chip__confidence tech-stack-chip__confidence--${tech.confidence}`}>
-                    {tech.confidence}
+                <span key={tech.name} className='tech-stack-pill'>
+                  <span className='tech-stack-pill__name'>{tech.name}</span>
+                  <span className={`badge tech-stack-chip__badge--${tech.category}`}>
+                    {CATEGORY_LABELS[tech.category]}
                   </span>
-                </article>
+                </span>
               ))}
             </div>
           ) : (
@@ -209,31 +208,47 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
         >
           <div className='url-analyzer-result__section-header'>
             <h3 id='analysis-issues-title'>Key issues</h3>
-            <p>
-              Priority observations to address before investing in new tests.
-            </p>
+            <p>Priority observations to address before investing in new tests.</p>
           </div>
 
-          <div className='url-analyzer-result__grid'>
-            {result.issues.map((issue) => (
-              <article className='url-analyzer-result__card' key={issue.id}>
-                <div className='url-analyzer-result__card-header'>
-                  <strong>{issue.title}</strong>
-                  <span className='badge badge--neutral'>{issue.severity}</span>
-                </div>
-                <p>{issue.detail}</p>
-                <dl className='url-analyzer-result__details'>
-                  <div>
-                    <dt className='label'>Impact</dt>
-                    <dd>{issue.impact}</dd>
-                  </div>
-                  <div>
-                    <dt className='label'>Confidence</dt>
-                    <dd>{issue.confidence}</dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
+          <div className='issues-list'>
+            {result.issues.map((issue) => {
+              const isExpanded = expandedIssueId === issue.id
+              return (
+                <article className='issue-card' key={issue.id}>
+                  <button
+                    className='issue-card__header'
+                    onClick={() => setExpandedIssueId(isExpanded ? null : issue.id)}
+                    aria-expanded={isExpanded}
+                    type='button'
+                  >
+                    <span className={`badge badge--severity-${issue.severity}`}>
+                      {issue.severity}
+                    </span>
+                    <span className='issue-card__title'>{issue.title}</span>
+                    <ChevronDown
+                      className={`issue-card__chevron${isExpanded ? ' issue-card__chevron--open' : ''}`}
+                      size={16}
+                    />
+                  </button>
+                  {isExpanded && (
+                    <div className='issue-card__body'>
+                      <p>{issue.detail}</p>
+                      <div className='issue-card__meta'>
+                        <div>
+                          <span className='label'>Impact</span>
+                          <span>{issue.impact}</span>
+                        </div>
+                        <div>
+                          <span className='label'>Confidence</span>
+                          <span>{issue.confidence}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
           </div>
         </section>
 
@@ -243,47 +258,68 @@ export function UrlAnalyzerResult({ result }: UrlAnalyzerResultProps) {
         >
           <div className='url-analyzer-result__section-header'>
             <h3 id='analysis-experiments-title'>Experiment suggestions</h3>
-            <p>
-              Practical follow-up tests that build directly on the observed
-              issues.
-            </p>
+            <p>Practical follow-up tests that build directly on the observed issues.</p>
           </div>
 
-          <div className='url-analyzer-result__grid'>
-            {result.experiments.map((experiment) => (
-              <article
-                className='url-analyzer-result__card'
-                key={experiment.id}
-              >
-                <strong>{experiment.title}</strong>
-                <p>{experiment.hypothesis}</p>
-                <dl className='url-analyzer-result__details'>
-                  <div>
-                    <dt className='label'>Impact</dt>
-                    <dd>{experiment.impact}</dd>
-                  </div>
-                  <div>
-                    <dt className='label'>Confidence</dt>
-                    <dd>{experiment.confidence}</dd>
-                  </div>
-                  <div>
-                    <dt className='label'>Variant</dt>
-                    <dd>{experiment.variant}</dd>
-                  </div>
-                  <div className='url-analyzer-result__details-full'>
-                    <dt className='label'>Metric</dt>
-                    <dd>{experiment.metric}</dd>
-                  </div>
-                  {experiment.implementationHint ? (
-                    <div className='url-analyzer-result__details-full'>
-                      <dt className='label'>Implementation hint</dt>
-                      <dd>{experiment.implementationHint}</dd>
+          {experimentStatus === 'idle' && (
+            <button
+              className='generate-btn'
+              onClick={onGenerateExperiments}
+              type='button'
+            >
+              Generate experiment suggestions
+            </button>
+          )}
+
+          {experimentStatus === 'loading' && (
+            <p className='url-analyzer-result__experiments-status'>
+              Generating experiment suggestions…
+            </p>
+          )}
+
+          {experimentStatus === 'error' && (
+            <p className='url-analyzer-result__experiments-status url-analyzer-result__experiments-status--error'>
+              Could not generate experiment suggestions. Please try again.
+            </p>
+          )}
+
+          {experimentStatus === 'success' && experiments && (
+            <div className='url-analyzer-result__grid'>
+              {experiments.map((experiment) => (
+                <article
+                  className='url-analyzer-result__card'
+                  key={experiment.id}
+                >
+                  <strong>{experiment.title}</strong>
+                  <p>{experiment.hypothesis}</p>
+                  <dl className='url-analyzer-result__details'>
+                    <div>
+                      <dt className='label'>Impact</dt>
+                      <dd>{experiment.impact}</dd>
                     </div>
-                  ) : null}
-                </dl>
-              </article>
-            ))}
-          </div>
+                    <div>
+                      <dt className='label'>Confidence</dt>
+                      <dd>{experiment.confidence}</dd>
+                    </div>
+                    <div>
+                      <dt className='label'>Variant</dt>
+                      <dd>{experiment.variant}</dd>
+                    </div>
+                    <div className='url-analyzer-result__details-full'>
+                      <dt className='label'>Metric</dt>
+                      <dd>{experiment.metric}</dd>
+                    </div>
+                    {experiment.implementationHint ? (
+                      <div className='url-analyzer-result__details-full'>
+                        <dt className='label'>Implementation hint</dt>
+                        <dd>{experiment.implementationHint}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </section>
