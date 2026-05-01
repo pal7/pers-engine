@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "create-index": "tsx --env-file .env createSearchIndex.ts",
+    "create-index": "npx tsx --env-file .env createSearchIndex.ts",
     "seed": "tsx --env-file .env seedPipeline.ts"
   },
   "dependencies": {

@@ -1487,3 +1487,171 @@ strong {
   font-size: 0.86rem;
   line-height: 1.6;
 }
+
+/* ── Severity badges ──────────────────────────────────────────────────────── */
+
+.badge--severity-high   { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; min-width: 56px; justify-content: center; }
+.badge--severity-medium { background: rgba(245, 158, 11, 0.18); color: #fcd34d; min-width: 56px; justify-content: center; }
+.badge--severity-low    { background: rgba(34, 197, 94, 0.18);  color: #86efac; min-width: 56px; justify-content: center; }
+
+/* ── Issue accordion ──────────────────────────────────────────────────────── */
+
+.issues-list {
+  display: grid;
+  gap: 6px;
+}
+
+.issue-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.issue-card:has(.issue-card__header[aria-expanded="true"]) {
+  border-color: rgba(20, 184, 166, 0.22);
+}
+
+.issue-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.issue-card__header:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.issue-card__title {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.issue-card__chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.issue-card__chevron--open {
+  transform: rotate(180deg);
+}
+
+.issue-card__body {
+  display: grid;
+  gap: 14px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.issue-card__body p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.issue-card__meta {
+  display: flex;
+  gap: 32px;
+}
+
+.issue-card__meta > div {
+  display: grid;
+  gap: 4px;
+}
+
+.issue-card__meta .label {
+  display: block;
+}
+
+.issue-card__meta span:not(.label) {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+/* ── Tech stack pills ─────────────────────────────────────────────────────── */
+
+.tech-stack-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tech-stack-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.tech-stack-pill__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.tech-stack-pill .badge {
+  padding: 2px 7px;
+  font-size: 0.68rem;
+}
+
+/* ── Generate experiments button ──────────────────────────────────────────── */
+
+.generate-btn {
+  width: 100%;
+  height: 52px;
+  padding: 0 28px;
+  font-size: 0.97rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+  color: #f8fafc;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.12s;
+  box-shadow: 0 4px 16px rgba(15, 118, 110, 0.28);
+}
+
+.generate-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.generate-btn:active {
+  transform: translateY(0);
+}
+
+/* ── Experiment status lines ──────────────────────────────────────────────── */
+
+.url-analyzer-result__experiments-status {
+  margin: 0;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.url-analyzer-result__experiments-status--error {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+}
