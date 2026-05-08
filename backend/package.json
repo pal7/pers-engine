@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts"
+    "dev": "tsx watch --env-file .env src/server.ts",
+    "start": "tsx --env-file .env src/server.ts"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
     "@azure/keyvault-secrets": "^4.11.1",
+    "@azure/search-documents": "^12.2.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "openai": "^6.34.0",

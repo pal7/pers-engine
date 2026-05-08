@@ -4,6 +4,7 @@ import { extractHtmlSignals } from './services/extractHtmlSignals'
 import { extractRenderedSignals } from './services/extractRenderedSignals'
 import { generateIssues } from './services/generateIssues'
 import { analyzeWithAI } from './services/openAiService'
+import { retrieveSimilarAnalyses } from './services/ragService'
 import type { ExtractedPageSignals } from './services/extractPageSignals'
 import type {
   AnalysisEvidence,
@@ -139,7 +140,12 @@ export async function analyzeWebsite(
 
   if (process.env.AZURE_OPENAI_KEY) {
     console.log('[analyze] Using GPT-5.2 for analysis')
-    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack)
+    const queryText = adaptedSignals.heroText || adaptedSignals.pageTitle || ''
+    const similarAnalyses = await retrieveSimilarAnalyses(queryText, evidence.pageType)
+    if (similarAnalyses.length > 0) {
+      console.log(`[analyze] RAG: ${similarAnalyses.length} similar analyses retrieved`)
+    }
+    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack, similarAnalyses)
     issues = aiResult.issues
     summary = aiResult.summary
   } else {
