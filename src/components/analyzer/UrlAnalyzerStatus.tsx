@@ -53,7 +53,7 @@ function AnalysisStepper({ steps, currentIndex }: AnalysisStepperProps) {
           const state: 'done' | 'active' | 'pending' =
             i < currentIndex ? 'done' : i === currentIndex ? 'active' : 'pending'
           return (
-            <div className="analysis-stepper__item" key={i}>
+            <div className="analysis-stepper__item" key={label}>
               <div className={`analysis-stepper__node-wrap analysis-stepper__node-wrap--${state}`}>
                 {state === 'active' && <div className="analysis-stepper__spinner" aria-hidden="true" />}
                 <div className={`analysis-stepper__node analysis-stepper__node--${state}`}>
@@ -109,7 +109,12 @@ export function UrlAnalyzerStatus({
       : statusContent[status]
 
   return (
-    <section className={`panel url-analyzer-status url-analyzer-status--${content.tone}`}>
+    <section
+      className={`panel url-analyzer-status url-analyzer-status--${content.tone}`}
+      role={status === 'error' ? 'alert' : 'status'}
+      aria-live={status === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+    >
       <div className="panel__header url-analyzer-status__header">
         <div>
           <h2>{content.title}</h2>

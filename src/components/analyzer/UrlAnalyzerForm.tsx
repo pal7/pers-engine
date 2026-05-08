@@ -38,10 +38,12 @@ export function UrlAnalyzerForm({
       <p className="hero-input__eyebrow">Personalization Engine</p>
       <h1 className="hero-input__title">Analyse any website</h1>
 
-      <form className="hero-input__form" onSubmit={handleSubmit}>
+      <form className="hero-input__form" onSubmit={handleSubmit} aria-busy={status === 'loading'} noValidate>
         <div className="hero-input__row">
           <input
             aria-label="Website URL"
+            aria-describedby={validationMessage ? 'url-validation-msg' : undefined}
+            aria-invalid={validationMessage ? 'true' : undefined}
             autoComplete="url"
             className="hero-input__field"
             id="website-url"
@@ -54,13 +56,14 @@ export function UrlAnalyzerForm({
             className="hero-input__cta button button--primary"
             disabled={status === 'loading' || !isValid}
             type="submit"
+            aria-disabled={status === 'loading' || !isValid}
           >
             {status === 'loading' ? 'Analysing…' : 'Analyse'}
           </button>
         </div>
 
         {validationMessage ? (
-          <p className="hero-input__validation" role="alert">
+          <p className="hero-input__validation" role="alert" id="url-validation-msg">
             {validationMessage}
           </p>
         ) : null}

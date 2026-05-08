@@ -253,7 +253,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
         </section>
 
         <section
-          className='url-analyzer-result__section url-analyzer-result__section--experiments'
+          className='url-analyzer-result__section'
           aria-labelledby='analysis-experiments-title'
         >
           <div className='url-analyzer-result__section-header'>
@@ -266,6 +266,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
               className='generate-btn'
               onClick={onGenerateExperiments}
               type='button'
+              aria-label='Generate A/B experiment suggestions based on the identified issues'
             >
               Generate experiment suggestions
             </button>
