@@ -253,7 +253,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
         </section>
 
         <section
-          className='url-analyzer-result__section'
+          className='url-analyzer-result__section url-analyzer-result__section--experiments'
           aria-labelledby='analysis-experiments-title'
         >
           <div className='url-analyzer-result__section-header'>
