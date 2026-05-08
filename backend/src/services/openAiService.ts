@@ -5,6 +5,7 @@ import type {
   DetectedTech,
 } from '../../../shared/analysis.ts'
 import type { ExtractedPageSignals } from './extractPageSignals.ts'
+import type { SimilarAnalysis } from './ragService.ts'
 
 const PAGE_TEXT_LIMIT = 1500
 
@@ -43,6 +44,7 @@ function buildUserPrompt(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
+  similarAnalyses: SimilarAnalysis[] = [],
 ): string {
   const metaLines: string[] = [`URL: ${signals.resolvedUrl}`]
   if (signals.pageTitle) metaLines.push(`Title: ${signals.pageTitle}`)
@@ -75,6 +77,17 @@ function buildUserPrompt(
 
   const pageTextSample = signals.pageText.slice(0, PAGE_TEXT_LIMIT)
 
+  const similarSection =
+    similarAnalyses.length > 0
+      ? '\n\nSIMILAR SITE ANALYSES\nThe following analyses from similar pages may inform your assessment:\n' +
+        similarAnalyses
+          .map(
+            (s, i) =>
+              `${i + 1}. ${s.url} (${s.category})\n   Summary: ${s.summary}\n   Issues: ${s.issues.join(', ')}`,
+          )
+          .join('\n')
+      : ''
+
   return `ANALYSIS CONTEXT
 Page category: ${evidence.pageType}
 Industry benchmark: ${getCategoryContext(evidence.pageType)}
@@ -89,7 +102,7 @@ PAGE ARCHITECTURE
 ${archLines.join('\n')}
 
 PAGE CONTENT SAMPLE
-${pageTextSample}
+${pageTextSample}${similarSection}
 
 INSTRUCTIONS
 ANALYSIS PRIORITIES — evaluate in this order:
@@ -146,6 +159,7 @@ export async function analyzeWithAI(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
+  similarAnalyses: SimilarAnalysis[] = [],
 ): Promise<{ summary: string; issues: AnalysisIssue[] }> {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_KEY
@@ -196,7 +210,7 @@ export async function analyzeWithAI(
         },
         {
           role: 'user',
-          content: buildUserPrompt(signals, evidence, techStack),
+          content: buildUserPrompt(signals, evidence, techStack, similarAnalyses),
         },
       ],
     })

@@ -1,0 +1,9 @@
+{
+  "routes": [
+    {
+      "route": "/*",
+      "redirect": "https://gray-moss-0a4c7ec0f.7.azurestaticapps.net",
+      "statusCode": 301
+    }
+  ]
+}
