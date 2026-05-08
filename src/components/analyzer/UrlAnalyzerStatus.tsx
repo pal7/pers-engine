@@ -3,10 +3,6 @@ import type { AnalysisStatus } from '../../types/analysis'
 interface UrlAnalyzerStatusProps {
   status: AnalysisStatus
   errorMessage?: string
-  currentStep?: string
-  currentStepIndex?: number
-  totalSteps?: number
-  steps?: string[]
 }
 
 const statusContent: Record<
@@ -90,8 +86,6 @@ function AnalysisStepper({ steps, currentIndex }: AnalysisStepperProps) {
 export function UrlAnalyzerStatus({
   status,
   errorMessage,
-  currentStepIndex,
-  steps,
 }: UrlAnalyzerStatusProps) {
   if (status === 'success') {
     return null
@@ -125,9 +119,6 @@ export function UrlAnalyzerStatus({
         </span>
       </div>
 
-      {status === 'loading' && steps && typeof currentStepIndex === 'number' ? (
-        <AnalysisStepper steps={steps} currentIndex={currentStepIndex} />
-      ) : null}
     </section>
   )
 }

@@ -4,6 +4,17 @@ export interface AnalysisRequest {
 
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
 
+export type AnalysisProgressStepId = 'fetch' | 'browser-fallback' | 'rag' | 'gpt' | 'experiments'
+export type AnalysisProgressStatus = 'active' | 'done' | 'warn' | 'error'
+
+export interface AnalysisProgressEvent {
+  id: AnalysisProgressStepId
+  label: string
+  status: AnalysisProgressStatus
+  detail?: string
+  prompt?: string
+}
+
 export type TechStackCategory =
   | 'ab-testing'
   | 'personalisation'

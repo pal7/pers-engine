@@ -1,16 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { AnalysisActivityLog } from '../components/analyzer/AnalysisActivityLog'
 import { UrlAnalyzerForm } from '../components/analyzer/UrlAnalyzerForm'
 import { UrlAnalyzerResult } from '../components/analyzer/UrlAnalyzerResult'
 import { UrlAnalyzerStatus } from '../components/analyzer/UrlAnalyzerStatus'
 import { AppShell } from '../components/layout/AppShell'
-import { submitAnalysis, submitExperiments } from '../lib/analysisApi'
-import type { AnalysisExperiment, AnalysisResponse, AnalysisStatus } from '../types/analysis'
-
-const analysisProgressSteps = [
-  'Validating website URL',
-  'Capturing page structure',
-  'Reviewing conversion signals',
-]
+import { submitAnalysisStream, submitExperiments } from '../lib/analysisApi'
+import type { AnalysisExperiment, AnalysisProgressEvent, AnalysisResponse, AnalysisStatus } from '../types/analysis'
 
 type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -19,49 +14,53 @@ export function UrlAnalyzerPage() {
   const [status, setStatus] = useState<AnalysisStatus>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [result, setResult] = useState<AnalysisResponse | null>(null)
-  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [progressEvents, setProgressEvents] = useState<AnalysisProgressEvent[]>([])
   const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>('idle')
   const [experiments, setExperiments] = useState<AnalysisExperiment[] | null>(null)
+  const cancelStreamRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    if (status !== 'loading') {
-      return
-    }
-
-    const intervalId = window.setInterval(() => {
-      setCurrentStepIndex((currentIndex) =>
-        currentIndex < analysisProgressSteps.length - 2
-          ? currentIndex + 1
-          : analysisProgressSteps.length - 1,
-      )
-    }, 2800)
-
     return () => {
-      window.clearInterval(intervalId)
+      cancelStreamRef.current?.()
     }
-  }, [status])
+  }, [])
 
-  const handleSubmit = async (normalizedUrl: string) => {
-    setCurrentStepIndex(0)
+  const handleSubmit = (normalizedUrl: string) => {
+    cancelStreamRef.current?.()
+
     setStatus('loading')
     setErrorMessage('')
     setResult(null)
+    setProgressEvents([])
     setExperiments(null)
     setExperimentStatus('idle')
 
-    try {
-      const response = await submitAnalysis({ url: normalizedUrl })
-      setResult(response)
-      setStatus('success')
-      setExperimentStatus('idle')
-    } catch (error) {
-      setStatus('error')
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Something went wrong while analyzing that website.',
-      )
-    }
+    const cancel = submitAnalysisStream(
+      { url: normalizedUrl },
+      (event) => {
+        setProgressEvents((prev) => {
+          // Replace existing event with same id+status=active, or append
+          const existingActiveIdx = prev.findIndex((e) => e.id === event.id && e.status === 'active')
+          if (existingActiveIdx !== -1 && event.status !== 'active') {
+            const next = [...prev]
+            next[existingActiveIdx] = event
+            return next
+          }
+          return [...prev, event]
+        })
+      },
+      (response) => {
+        setResult(response)
+        setStatus('success')
+        setExperimentStatus('idle')
+      },
+      (message) => {
+        setStatus('error')
+        setErrorMessage(message)
+      },
+    )
+
+    cancelStreamRef.current = cancel
   }
 
   const handleGenerateExperiments = async () => {
@@ -85,7 +84,7 @@ export function UrlAnalyzerPage() {
       })
       setExperiments(response.experiments)
       setExperimentStatus('success')
-    } catch (error) {
+    } catch {
       setExperimentStatus('error')
     }
   }
@@ -99,14 +98,16 @@ export function UrlAnalyzerPage() {
           status={status}
           value={rawUrl}
         />
-        <UrlAnalyzerStatus
-          currentStep={status === 'loading' ? analysisProgressSteps[currentStepIndex] : undefined}
-          currentStepIndex={status === 'loading' ? currentStepIndex : undefined}
-          errorMessage={errorMessage}
-          status={status}
-          steps={status === 'loading' ? analysisProgressSteps : undefined}
-          totalSteps={status === 'loading' ? analysisProgressSteps.length : undefined}
-        />
+
+        {status === 'loading' ? (
+          <AnalysisActivityLog events={progressEvents} />
+        ) : (
+          <UrlAnalyzerStatus
+            errorMessage={errorMessage}
+            status={status}
+          />
+        )}
+
         <div aria-live="polite" aria-atomic="false">
           {result ? (
             <UrlAnalyzerResult

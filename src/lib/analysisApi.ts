@@ -1,5 +1,6 @@
 import type {
   AnalysisExperiment,
+  AnalysisProgressEvent,
   AnalysisRequest,
   AnalysisResponse,
   ExperimentRequest,
@@ -14,6 +15,7 @@ const API_BASE = (() => {
 })()
 
 const ANALYSIS_API_URL = `${API_BASE}/api/analyze`
+const ANALYSIS_STREAM_URL = `${API_BASE}/api/analyze/stream`
 const EXPERIMENTS_API_URL = `${API_BASE}/api/experiments`
 
 async function apiPost<T>(url: string, body: unknown): Promise<T> {
@@ -42,6 +44,72 @@ async function apiPost<T>(url: string, body: unknown): Promise<T> {
 
 export function submitAnalysis(request: AnalysisRequest): Promise<AnalysisResponse> {
   return apiPost<AnalysisResponse>(ANALYSIS_API_URL, request)
+}
+
+export function submitAnalysisStream(
+  request: AnalysisRequest,
+  onProgress: (event: AnalysisProgressEvent) => void,
+  onResult: (result: AnalysisResponse) => void,
+  onError: (message: string) => void,
+): () => void {
+  const controller = new AbortController()
+
+  ;(async () => {
+    let response: Response
+    try {
+      response = await fetch(ANALYSIS_STREAM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      })
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        onError('We could not reach the analysis service. Please try again.')
+      }
+      return
+    }
+
+    if (!response.ok || !response.body) {
+      const errorBody = await response.json().catch(() => null) as { message?: string } | null
+      onError(errorBody?.message ?? 'Analysis service returned an error.')
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let currentEvent = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim()
+        } else if (line.startsWith('data: ')) {
+          try {
+            const parsed = JSON.parse(line.slice(6)) as unknown
+            if (currentEvent === 'progress') {
+              onProgress(parsed as AnalysisProgressEvent)
+            } else if (currentEvent === 'result') {
+              onResult(parsed as AnalysisResponse)
+            } else if (currentEvent === 'error') {
+              onError(((parsed as { message?: string }).message) ?? 'Analysis failed.')
+            }
+          } catch { /* malformed SSE line */ }
+          currentEvent = ''
+        }
+      }
+    }
+  })()
+
+  return () => controller.abort()
 }
 
 export function submitExperiments(
