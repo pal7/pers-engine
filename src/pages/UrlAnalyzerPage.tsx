@@ -107,14 +107,16 @@ export function UrlAnalyzerPage() {
           steps={status === 'loading' ? analysisProgressSteps : undefined}
           totalSteps={status === 'loading' ? analysisProgressSteps.length : undefined}
         />
-        {result ? (
-          <UrlAnalyzerResult
-            result={result}
-            experimentStatus={experimentStatus}
-            experiments={experiments}
-            onGenerateExperiments={handleGenerateExperiments}
-          />
-        ) : null}
+        <div aria-live="polite" aria-atomic="false">
+          {result ? (
+            <UrlAnalyzerResult
+              result={result}
+              experimentStatus={experimentStatus}
+              experiments={experiments}
+              onGenerateExperiments={handleGenerateExperiments}
+            />
+          ) : null}
+        </div>
       </div>
     </AppShell>
   )
