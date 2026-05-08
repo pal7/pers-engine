@@ -3,16 +3,19 @@ import { detectTechStack } from './services/techStackDetector'
 import { extractHtmlSignals } from './services/extractHtmlSignals'
 import { extractRenderedSignals } from './services/extractRenderedSignals'
 import { generateIssues } from './services/generateIssues'
-import { analyzeWithAI } from './services/openAiService'
+import { analyzeWithAI, buildUserPromptPreview } from './services/openAiService'
 import { retrieveSimilarAnalyses } from './services/ragService'
 import type { ExtractedPageSignals } from './services/extractPageSignals'
 import type {
   AnalysisEvidence,
   AnalysisIssue,
+  AnalysisProgressEvent,
   AnalysisRequest,
   AnalysisResponse,
 } from '../../shared/analysis.ts'
 import type { ExtractionResult } from './services/extractionTypes'
+
+type OnProgress = (event: AnalysisProgressEvent) => void
 
 const trustKeywords = [
   'customer stories',
@@ -93,15 +96,30 @@ function pickBestExtraction(
 
 export async function analyzeWebsite(
   request: AnalysisRequest,
+  onProgress?: OnProgress,
 ): Promise<AnalysisResponse> {
+  const emit = (event: AnalysisProgressEvent) => onProgress?.(event)
+
   const analyzedUrl = new URL(request.url).toString()
   const hostname = new URL(analyzedUrl).hostname.replace(/^www\./, '')
 
+  emit({ id: 'fetch', label: 'Fetching page…', status: 'active' })
   const htmlResult = await extractHtmlSignals(analyzedUrl)
-  const browserResult = shouldAttemptBrowserFallback(htmlResult)
-    ? await extractRenderedSignals(analyzedUrl)
-    : null
+
+  let browserResult: ExtractionResult | null = null
+  if (shouldAttemptBrowserFallback(htmlResult)) {
+    emit({ id: 'browser-fallback', label: 'Running browser fallback…', status: 'active', detail: 'HTML extraction had limited signals' })
+    browserResult = await extractRenderedSignals(analyzedUrl)
+    emit({ id: 'browser-fallback', label: 'Browser extraction complete', status: 'done' })
+  }
+
   const bestExtraction = pickBestExtraction(htmlResult, browserResult)
+  emit({
+    id: 'fetch',
+    label: 'Page fetched',
+    status: bestExtraction.extractionQuality === 'blocked' ? 'warn' : 'done',
+    detail: `${bestExtraction.extractionMode} · ${bestExtraction.extractionQuality}`,
+  })
 
   const combinedText = [
     bestExtraction.signals.title,
@@ -132,7 +150,6 @@ export async function analyzeWebsite(
   }
 
   const techStack = detectTechStack(bestExtraction.rawHtml)
-
   const evidence = buildEvidence(adaptedSignals)
 
   let issues: AnalysisIssue[]
@@ -140,19 +157,39 @@ export async function analyzeWebsite(
 
   if (process.env.AZURE_OPENAI_KEY) {
     console.log('[analyze] Using GPT-5.2 for analysis')
+
     const queryText = adaptedSignals.heroText || adaptedSignals.pageTitle || ''
+    emit({ id: 'rag', label: 'Retrieving similar analyses…', status: 'active' })
     const similarAnalyses = await retrieveSimilarAnalyses(queryText, evidence.pageType)
+
     if (similarAnalyses.length > 0) {
       console.log(`[analyze] RAG: ${similarAnalyses.length} similar analyses retrieved`)
+      emit({
+        id: 'rag',
+        label: `${similarAnalyses.length} similar ${evidence.pageType} ${similarAnalyses.length === 1 ? 'analysis' : 'analyses'} found`,
+        status: 'done',
+        detail: similarAnalyses.map((s) => new URL(s.url).hostname).join(', '),
+      })
+    } else {
+      emit({ id: 'rag', label: 'No close matches in index', status: 'warn' })
     }
+
+    const promptPreview = buildUserPromptPreview(adaptedSignals, evidence, techStack, similarAnalyses)
+    emit({ id: 'gpt', label: 'Sending prompt to GPT-5.2…', status: 'active', prompt: promptPreview })
+
     const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack, similarAnalyses)
     issues = aiResult.issues
     summary = aiResult.summary
+
+    emit({ id: 'gpt', label: 'Analysis received', status: 'done', detail: `${issues.length} issues identified` })
   } else {
     console.warn('[analyze] AZURE_OPENAI_KEY not set, using template fallback')
+    emit({ id: 'rag', label: 'RAG skipped — no AI key configured', status: 'warn' })
+    emit({ id: 'gpt', label: 'Using template fallback — no AI key configured', status: 'warn' })
     issues = generateIssues(evidence, adaptedSignals)
     summary = buildSummary(hostname, evidence, issues)
   }
+
   const extractionWarnings = Array.from(
     new Set([
       ...bestExtraction.extractionWarnings,

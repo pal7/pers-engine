@@ -46,6 +46,15 @@ function buildUserPrompt(
   techStack: DetectedTech[],
   similarAnalyses: SimilarAnalysis[] = [],
 ): string {
+  return buildUserPromptPreview(signals, evidence, techStack, similarAnalyses)
+}
+
+export function buildUserPromptPreview(
+  signals: ExtractedPageSignals,
+  evidence: AnalysisEvidence,
+  techStack: DetectedTech[],
+  similarAnalyses: SimilarAnalysis[] = [],
+): string {
   const metaLines: string[] = [`URL: ${signals.resolvedUrl}`]
   if (signals.pageTitle) metaLines.push(`Title: ${signals.pageTitle}`)
   if (signals.metaDescription) metaLines.push(`Meta description: ${signals.metaDescription}`)

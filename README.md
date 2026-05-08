@@ -1,22 +1,21 @@
 # pers-engine
 
-> Enter a URL. Get AI-powered A/B test suggestions and UX issues in seconds.
+> Enter a URL. Get AI-powered UX analysis and A/B experiment suggestions in seconds.
 
-pers-engine analyses any website and returns actionable UX improvements and A/B test hypotheses — powered by Azure OpenAI and deployed on enterprise-grade Azure infrastructure.
+pers-engine analyses any website and returns actionable UX findings and experiment hypotheses — powered by Azure OpenAI GPT-5.2, grounded with RAG retrieval from a corpus of 200 real site analyses.
 
-**Live demo:** _coming soon_
+**Live:** [gray-moss-0a4c7ec0f.7.azurestaticapps.net](https://gray-moss-0a4c7ec0f.7.azurestaticapps.net)
 
 ---
 
 ## What it does
 
 1. User submits a URL via the React frontend
-2. Express backend validates and fetches the page (with Playwright fallback for JS-heavy sites)
-3. Azure OpenAI analyses the content and returns:
-   - UX issues with severity ratings
-   - A/B test hypotheses with expected impact
-   - Experiment templates ready to implement
-4. Results are cached in Azure Cosmos DB for repeat requests
+2. Express backend fetches the page (HTML fast path, Playwright fallback for JS-heavy sites)
+3. Tech stack is detected from script sources and page signals (44 tools, 10 categories)
+4. RAG retrieval: the page's hero text is embedded and used to vector-search a corpus of 200 similar site analyses in Azure AI Search — the top matches are injected into the GPT prompt
+5. Azure OpenAI GPT-5.2 analyses the page and returns structured UX issues
+6. A second GPT call generates platform-specific A/B experiment designs using tool calls (Adobe Target, Optimizely, VWO, or generic)
 
 ---
 
@@ -24,18 +23,20 @@ pers-engine analyses any website and returns actionable UX improvements and A/B 
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18, TypeScript, Vite |
-| Backend | Node.js, Express, TypeScript |
-| Scraping | Playwright (JS-rendered sites) |
-| AI | Azure OpenAI (GPT-4o) |
-| Hosting | Azure Static Web Apps (frontend) |
-| Compute | Azure Container Apps (backend + scraper) |
-| API layer | Azure API Management |
-| Database | Azure Cosmos DB |
-| Secrets | Azure Key Vault |
-| Identity | Azure Entra ID (Azure AD) |
-| Observability | Azure Application Insights |
-| CI/CD | GitHub Actions → Azure Container Registry |
+| Frontend | React 18, TypeScript, Vite (port 5173) |
+| Backend | Node.js, Express, TypeScript (port 3001) |
+| Scraping | Playwright (JS-rendered sites fallback) |
+| AI — analysis | Azure OpenAI GPT-5.2 (`pers-engine-foundry`, Canada Central) |
+| AI — embeddings | `text-embedding-ada-002` (East US 2) |
+| RAG retrieval | Azure AI Search (`pers-engine-search2`) — vector index of 200 site analyses |
+| Shared types | `shared/analysis.ts` (frontend + backend) |
+| Hosting | Azure Static Web Apps (frontend + CDN) |
+| Compute | Azure Container Apps (backend) |
+| Database | Azure Cosmos DB — `pers-engine-db` (result caching, coming soon) |
+| Secrets | Azure Key Vault — `pers-engine-kv2` |
+| Identity | Managed identity — no secrets in code |
+| Observability | Azure Application Insights — `pers-engine-insights` |
+| CI/CD | GitHub Actions → Azure Container Registry → Container App continuous deployment |
 
 ---
 
@@ -46,42 +47,42 @@ User
  │
  ▼
 Azure Static Web Apps (React frontend + global CDN)
+ │  gray-moss-0a4c7ec0f.7.azurestaticapps.net
  │
  ▼
-Azure API Management (rate limiting · auth · routing)
+Azure Container Apps (Node/Express backend)
+ │  pers-engine-backend.victoriouscliff-9e3e036f.canadacentral.azurecontainerapps.io
  │
- ├──────────────────────────┐
- ▼                          ▼
-Azure Container Apps     Azure Container Apps
-(Node/Express backend)   (Playwright scraper)
- │                          │
- ▼                          ▼
-Azure OpenAI (GPT-4o)   Azure Blob Storage
-Azure Cosmos DB          (page snapshots)
-Azure Key Vault
-Azure Application Insights
+ ├─── Azure AI Foundry (GPT-5.2 — Canada Central)
+ │    pers-engine-foundry.cognitiveservices.azure.com
  │
- ▼
-GitHub Actions → Azure Container Registry → Auto deploy
+ ├─── Azure OpenAI (text-embedding-ada-002 — East US 2)
+ │    ashwi-mowg48v7-eastus2.cognitiveservices.azure.com
+ │
+ ├─── Azure AI Search (RAG vector index)
+ │    pers-engine-search2 — index: analyses (200 seeded docs)
+ │
+ ├─── Azure Cosmos DB (result caching — coming soon)
+ │    pers-engine-db
+ │
+ └─── Azure Key Vault (secrets via managed identity)
+      pers-engine-kv2
+
+GitHub Actions → ACR (persengineacr.azurecr.io) → Container App auto-deploy
 ```
 
-### Why each Azure service was chosen
+---
 
-**Azure Static Web Apps** — built-in GitHub Actions CI/CD, global CDN, and preview environments per PR. No server to manage for the frontend.
+## RAG pipeline
 
-**Azure Container Apps** — serverless containers that scale to zero. Chosen over Azure Functions because Playwright requires a persistent browser process that Functions' consumption model doesn't support cleanly.
+On each analysis request:
+1. `heroText` (or `pageTitle`) is embedded via `text-embedding-ada-002`
+2. Vector search against the `analyses` AI Search index (1536-dim HNSW, cosine similarity)
+3. Top 3 results filtered by `pageType` (ecommerce / saas / travel / finance / healthcare)
+4. Matching site summaries and top issues injected into the GPT prompt as `SIMILAR SITE ANALYSES`
+5. GPT produces analysis grounded in both the live page signals and comparable real-world data
 
-**Azure API Management** — centralised rate limiting, authentication, and request routing across both backend containers. Essential for any production multi-service architecture.
-
-**Azure OpenAI** — same GPT-4o model as OpenAI but with Canadian data residency, no training on your data, and SOC 2 / ISO 27001 compliance. Critical for enterprise and regulated-industry deployments.
-
-**Azure Cosmos DB** — globally distributed NoSQL for caching analysis results. Repeat URL submissions return instantly without re-calling the AI.
-
-**Azure Key Vault** — zero secrets in code or environment variables. All API keys and connection strings are fetched at runtime via managed identity.
-
-**Azure Entra ID** — RBAC for future multi-tenant support. Managed identity means containers authenticate to Key Vault and Cosmos DB without storing credentials anywhere.
-
-**Application Insights** — end-to-end distributed tracing across both containers, performance monitoring, and error alerting. Dashboards show real usage patterns.
+The index contains 200 seeded analyses across 5 verticals (40 each). Seed pipeline: `scripts/seedPipeline.ts`.
 
 ---
 
@@ -94,81 +95,102 @@ GitHub Actions → Azure Container Registry → Auto deploy
 ### Install and run
 
 ```bash
-# Clone the repo
+# Clone
 git clone https://github.com/pal7/pers-engine.git
 cd pers-engine
 
-# Install frontend dependencies
+# Frontend dependencies
 npm install
 
-# Install backend dependencies
-cd backend
-npm install
+# Backend dependencies
+cd backend && npm install
 
-# Run backend (port 3001)
+# Terminal 1 — backend (port 3001)
 npm run dev
 
-# In a new terminal — run frontend (port 5173)
-cd ..
-npm run dev
+# Terminal 2 — frontend (port 5173)
+cd .. && npm run dev
 ```
 
-### Environment variables
+### Backend environment variables
 
 Create `backend/.env`:
 
 ```env
 PORT=3001
-AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-AZURE_OPENAI_KEY=your_azure_openai_key
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-COSMOS_DB_CONNECTION_STRING=your_cosmos_connection_string
-APPINSIGHTS_CONNECTION_STRING=your_appinsights_connection_string
+
+# Azure OpenAI (GPT-5.2 — analysis and experiments)
+AZURE_OPENAI_ENDPOINT=https://pers-engine-foundry.cognitiveservices.azure.com/
+AZURE_OPENAI_KEY=<key from AI Foundry → Keys and Endpoint>
+AZURE_OPENAI_DEPLOYMENT=gpt-5.2
+
+# Azure OpenAI (embeddings — East US 2 resource)
+AZURE_EMBEDDING_ENDPOINT=https://ashwi-mowg48v7-eastus2.cognitiveservices.azure.com/
+AZURE_EMBEDDING_KEY=<key from East US 2 resource>
+AZURE_EMBEDDING_DEPLOYMENT=text-embedding-ada-002
+
+# Azure AI Search (RAG retrieval)
+AZURE_SEARCH_ENDPOINT=https://pers-engine-search2.search.windows.net
+AZURE_SEARCH_KEY=<admin key from AI Search → Keys>
+
+# Optional
+COSMOS_DB_CONNECTION_STRING=
+APPINSIGHTS_CONNECTION_STRING=
 ```
 
-> In production all secrets are stored in Azure Key Vault and fetched via managed identity — no `.env` file needed.
+If `AZURE_OPENAI_KEY` is not set, the backend falls back to template-generated issues (no AI, useful for pure frontend dev).
+
+> In production all secrets are in `pers-engine-kv2` Key Vault, read at startup via managed identity — no `.env` file needed.
 
 ---
 
 ## API reference
 
 ### `GET /api/health`
-Returns service status.
-
 ```json
 { "status": "ok" }
 ```
 
 ### `POST /api/analyze`
-Analyses a URL and returns UX issues and A/B test suggestions.
-
-**Request:**
-```json
-{
-  "url": "https://example.com"
-}
-```
+**Request:** `{ "url": "https://example.com" }`
 
 **Response:**
 ```json
 {
-  "url": "https://example.com",
+  "analyzedUrl": "https://example.com",
+  "summary": "...",
+  "extractionMode": "html",
+  "extractionQuality": "good",
+  "extractionWarnings": [],
+  "evidence": {
+    "heroText": "...",
+    "ctaCount": 3,
+    "hasForm": true,
+    "primaryCTAAboveFold": true,
+    "trustSignalsVisible": false,
+    "pageType": "saas"
+  },
+  "extractedSignals": { "title": "...", "h1": "...", "ctaTexts": [...] },
+  "techStack": [
+    { "name": "Adobe Target", "category": "ab-testing", "confidence": "definitive", "evidence": "..." }
+  ],
   "issues": [
     {
+      "id": "weak-hero-cta",
+      "title": "Weak CTA hierarchy above fold",
       "severity": "high",
-      "description": "CTA button has low contrast ratio (2.8:1)",
-      "recommendation": "Increase contrast to minimum 4.5:1 for WCAG AA compliance"
-    }
-  ],
-  "experiments": [
-    {
-      "hypothesis": "Changing CTA copy from 'Submit' to 'Get my free report' will increase clicks",
-      "expectedImpact": "15-25% CTR improvement",
-      "priority": "high"
+      "detail": "...",
+      "impact": "...",
+      "confidence": "High"
     }
   ]
 }
 ```
+
+### `POST /api/experiments`
+**Request:** `ExperimentRequest` (issues, techStack, evidence, pageContext)
+
+**Response:** `{ "experiments": [...] }` — one experiment per issue, platform-specific (Adobe Target / Optimizely / VWO / generic).
 
 ---
 
@@ -176,50 +198,82 @@ Analyses a URL and returns UX issues and A/B test suggestions.
 
 ```
 pers-engine/
-├── src/                        # React frontend
-│   └── ...
-├── public/                     # Static assets
+├── src/                              # React frontend
+│   ├── pages/UrlAnalyzerPage.tsx
+│   ├── components/
+│   │   ├── analyzer/
+│   │   │   ├── UrlAnalyzerForm.tsx
+│   │   │   ├── UrlAnalyzerResult.tsx
+│   │   │   └── UrlAnalyzerStatus.tsx
+│   │   └── layout/AppShell.tsx
+│   ├── lib/
+│   │   ├── analysisApi.ts
+│   │   └── urlValidation.ts
+│   └── index.css
+├── public/
+│   └── staticwebapp.config.json      # SPA navigation fallback
+├── shared/
+│   └── analysis.ts                   # Shared TS types (frontend + backend)
 ├── backend/
 │   └── src/
-│       ├── server.ts           # Express server, API routes
-│       ├── services/
-│       │   ├── analysisService.ts          # Core analysis logic
-│       │   ├── analysisExperimentTemplates.ts  # A/B test templates
-│       │   ├── analysisIssueTemplates.ts   # UX issue templates
-│       │   └── analysisMockData.ts         # Dev mock responses
-├── shared/
-│   └── analysis.ts             # Shared TypeScript types
-├── Dockerfile.backend          # Backend container
-├── Dockerfile.scraper          # Playwright scraper container
-└── .github/
-    └── workflows/
-        └── azure-deploy.yml    # CI/CD pipeline
+│       ├── server.ts
+│       ├── analysisService.ts        # Core pipeline (fetch → RAG → GPT)
+│       └── services/
+│           ├── openAiService.ts      # GPT-5.2 analysis + prompt builder
+│           ├── experimentService.ts  # Tool-call experiment generation
+│           ├── ragService.ts         # Vector search retrieval (AI Search)
+│           ├── extractHtmlSignals.ts
+│           ├── extractRenderedSignals.ts  # Playwright browser fallback
+│           ├── techStackDetector.ts  # 44-tool detection
+│           ├── buildEvidence.ts
+│           └── __tests__/
+│               └── ragService.test.ts  # 20 vitest tests
+├── scripts/
+│   ├── createSearchIndex.ts          # Creates AI Search index schema
+│   └── seedPipeline.ts               # Seeds 200 analyses into AI Search
+├── redirect-app/                     # Old SWA → new SWA redirect
+├── Dockerfile.backend
+└── .github/workflows/
+    ├── backend-deploy.yml
+    └── azure-static-web-apps-gray-moss-0a4c7ec0f.yml
 ```
 
 ---
 
-## Deployment
+## Running tests
 
-See [`infra/AZURE_SETUP.md`](infra/AZURE_SETUP.md) for step-by-step Azure provisioning commands.
+```bash
+cd backend
+npm test            # run once
+npm run test:watch  # watch mode
+```
 
-CI/CD is fully automated — push to `main` triggers a GitHub Actions workflow that builds both containers, pushes to Azure Container Registry, and deploys to Container Apps.
+20 unit tests covering the RAG retrieval service: env var guards, embedding failures, search failures, pageType filtering, and result parsing edge cases.
 
 ---
 
-## Background
+## CI/CD
 
-Built as a personal project at the intersection of my A/B testing and personalisation work (Adobe Target, BMO digital platforms) and Azure cloud architecture. The goal was to apply enterprise-grade cloud infrastructure patterns — API gateway, managed identity, distributed caching, observability — to a real tool in a domain I know well.
+Push to `main`:
+- **Frontend:** GitHub Actions builds Vite with `VITE_API_URL` injected → deploys to Azure Static Web Apps
+- **Backend:** Builds Docker image → pushes `:latest` to ACR → Container App continuous deployment picks it up automatically
+
+No service principal or `AZURE_CREDENTIALS` secret needed.
 
 ---
 
 ## Roadmap
 
-- [ ] Azure OpenAI integration (replacing mock data)
-- [ ] Playwright scraper container deployment
-- [ ] Cosmos DB caching layer
-- [ ] Application Insights dashboard
+- [ ] Live analysis feed — SSE streaming of pipeline steps visible during analysis
+- [ ] Cosmos DB result caching (by URL, TTL 24h)
+- [ ] Key Vault managed identity for all secrets
 - [ ] Multi-URL batch analysis
-- [ ] Shareable report links
+
+---
+
+## Background
+
+Built at the intersection of CRO/personalisation platform work (Adobe Target, Optimizely) and Azure cloud architecture. The goal is to apply enterprise-grade infrastructure — RAG retrieval, managed identity, distributed caching, observability — to a real analytical tool.
 
 ---
 

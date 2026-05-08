@@ -3,7 +3,7 @@ import express from "express";
 import { analyzeWebsite } from "./analysisService";
 import { generateExperimentsWithAI } from "./services/experimentService";
 import { AnalysisServiceError } from "./services/analysisError";
-import type { AnalysisRequest, ExperimentRequest } from "../../shared/analysis.ts";
+import type { AnalysisProgressEvent, AnalysisRequest, ExperimentRequest } from "../../shared/analysis.ts";
 
 const app = express();
 const port = Number(process.env.PORT || 3001);
@@ -46,6 +46,56 @@ app.post("/api/analyze", async (request, response) => {
           ? error.message
           : "We could not prepare the analysis request for that website.",
     });
+  }
+});
+
+app.post("/api/analyze/stream", async (request, response) => {
+  const body = request.body as Partial<AnalysisRequest> | undefined;
+
+  if (!body?.url || typeof body.url !== "string") {
+    response.status(400).json({ message: "A valid URL is required." });
+    return;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(body.url);
+  } catch {
+    response.status(400).json({ message: "Invalid URL." });
+    return;
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    response.status(400).json({ message: "Please submit an http:// or https:// website URL." });
+    return;
+  }
+
+  response.setHeader("Content-Type", "text/event-stream");
+  response.setHeader("Cache-Control", "no-cache");
+  response.setHeader("Connection", "keep-alive");
+  response.setHeader("X-Accel-Buffering", "no");
+  response.flushHeaders();
+
+  const emit = (eventName: string, data: unknown) => {
+    response.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  console.log("[stream] incoming URL:", body.url);
+
+  try {
+    const analysis = await analyzeWebsite(
+      { url: parsedUrl.toString() },
+      (event: AnalysisProgressEvent) => emit("progress", event),
+    );
+    emit("result", analysis);
+  } catch (error) {
+    emit("error", {
+      message: error instanceof Error
+        ? error.message
+        : "We could not prepare the analysis request for that website.",
+    });
+  } finally {
+    response.end();
   }
 });
 
