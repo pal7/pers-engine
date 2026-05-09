@@ -466,7 +466,7 @@ const DETECTION_RULES: DetectionRule[] = [
     name: 'LogRocket',
     category: 'heatmap',
     checks: [
-      { target: 'scriptSrc', pattern: /logrocket\.com/i, confidence: 'definitive', evidence: 'Found script src from logrocket.com' },
+      { target: 'scriptSrc', pattern: /logrocket\.com|logrocket\.io/i, confidence: 'definitive', evidence: 'Found script src from logrocket.com/logrocket.io' },
       { target: 'inline', pattern: /window\.LogRocket/i, confidence: 'likely', evidence: 'Found window.LogRocket in inline script' },
     ],
   },
