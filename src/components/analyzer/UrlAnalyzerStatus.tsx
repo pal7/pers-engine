@@ -26,62 +26,7 @@ const statusContent: Record<
   },
 }
 
-function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M2.5 7.5L5.5 10.5L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
-interface AnalysisStepperProps {
-  steps: string[]
-  currentIndex: number
-}
-
-function AnalysisStepper({ steps, currentIndex }: AnalysisStepperProps) {
-  const progressPct = Math.round(((currentIndex + 1) / steps.length) * 100)
-
-  return (
-    <div className="analysis-stepper">
-      <div className="analysis-stepper__track">
-        {steps.map((label, i) => {
-          const state: 'done' | 'active' | 'pending' =
-            i < currentIndex ? 'done' : i === currentIndex ? 'active' : 'pending'
-          return (
-            <div className="analysis-stepper__item" key={label}>
-              <div className={`analysis-stepper__node-wrap analysis-stepper__node-wrap--${state}`}>
-                {state === 'active' && <div className="analysis-stepper__spinner" aria-hidden="true" />}
-                <div className={`analysis-stepper__node analysis-stepper__node--${state}`}>
-                  {state === 'done' ? <CheckIcon /> : <span>{i + 1}</span>}
-                </div>
-              </div>
-              {i < steps.length - 1 && (
-                <div
-                  className={`analysis-stepper__connector${state === 'done' ? ' analysis-stepper__connector--done' : ''}`}
-                />
-              )}
-              <span className={`analysis-stepper__label analysis-stepper__label--${state}`}>
-                {label}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="analysis-stepper__progress-track" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
-        <div
-          className="analysis-stepper__progress-fill"
-          style={{ width: `${progressPct}%` }}
-        />
-      </div>
-
-      <p className="analysis-stepper__status-line" aria-live="polite">
-        Step {currentIndex + 1} of {steps.length} — {steps[currentIndex]}
-      </p>
-    </div>
-  )
-}
 
 export function UrlAnalyzerStatus({
   status,
