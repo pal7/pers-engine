@@ -108,7 +108,10 @@ export async function runAgentAnalysis(
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 
   const agentLoop = async () => {
-    browser = await chromium.launch({ headless: true })
+    browser = await chromium.launch({
+      headless: process.env.HEADLESS !== 'false',
+      executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined,
+    })
     const context = await browser.newContext({
       viewport: { width: 1440, height: 900 },
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

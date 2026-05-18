@@ -43,7 +43,10 @@ export async function extractRenderedSignals(url: string): Promise<ExtractionRes
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 
   try {
-    browser = await chromium.launch({ headless: true })
+    browser = await chromium.launch({
+      headless: process.env.HEADLESS !== 'false',
+      executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined,
+    })
     const context = await browser.newContext({
       viewport: { width: 1440, height: 960 },
       userAgent:
