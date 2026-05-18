@@ -22,7 +22,7 @@ export function AppShell({
   return (
     <div className="app-shell">
       {!hideHeader && (
-        <header className="app-shell__header">
+        <header className="app-shell__header" aria-label="Site header">
           <div className="app-shell__header-copy">
             <p className="app-shell__eyebrow">{overline}</p>
             <h1>{productName}</h1>
@@ -40,7 +40,7 @@ export function AppShell({
           </div>
         </header>
       )}
-      <main className={`app-shell__content${hideHeader ? ' app-shell__content--no-header' : ''}`}>{children}</main>
+      <main className={`app-shell__content${hideHeader ? ' app-shell__content--no-header' : ''}`} aria-label="Analyzer">{children}</main>
       <Footer />
     </div>
   )

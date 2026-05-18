@@ -27,13 +27,29 @@ npm run dev                      # port 5173
 Requires `backend/.env`:
 
 ```
-PORT=3001
-AZURE_OPENAI_ENDPOINT=
+# Playwright (local dev only)
+HEADLESS=false
+CHROME_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+# Azure OpenAI
+AZURE_OPENAI_ENDPOINT=https://canadacentral.api.cognitive.microsoft.com/
 AZURE_OPENAI_KEY=
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-COSMOS_DB_CONNECTION_STRING=
-APPINSIGHTS_CONNECTION_STRING=
+AZURE_OPENAI_DEPLOYMENT=gpt-5.2
+
+# Azure AI Search (RAG)
+AZURE_SEARCH_ENDPOINT=https://pers-engine-search.search.windows.net
+AZURE_SEARCH_KEY=
+
+# Azure Embeddings
+AZURE_EMBEDDING_DEPLOYMENT=text-embedding-ada-002
+AZURE_EMBEDDING_ENDPOINT=https://ashwi-moev3iec-canadaeast.cognitiveservices.azure.com/
+AZURE_EMBEDDING_KEY=
+
+# Azure Blob Storage (agent screenshots)
+AZURE_STORAGE_CONNECTION_STRING=
 ```
+
+`HEADLESS` and `CHROME_EXECUTABLE_PATH` are local-only — not needed in prod (Docker runs headless with playwright-managed browser). All other vars must also be set as Container App secrets in prod.
 
 ## API
 
@@ -70,8 +86,13 @@ infra/AZURE_SETUP.md
 
 ### Features
 - ✅ URL analysis with UX issues + experiment suggestions
-- ✅ Tech stack detection (44 tools, 10 categories, HTML signal matching)
+- ✅ Tech stack detection (58+ tools, 14 categories incl. consent, monitoring, font, chat)
 - ✅ Shared TypeScript types (shared/analysis.ts)
+- ✅ Agentic Playwright analysis — live browser session with 7 steps (navigate, runtime signals, above-fold screenshot, tech from network, scroll + mid-page screenshot, CTA click + post-click screenshot, synthesise)
+- ✅ Screenshot blob storage — agent screenshots uploaded to Azure Blob Storage (`agent-screenshots` container), returned as public URLs in `AgentSession.screenshots[]`
+- ✅ Screenshot gallery rendered in UI — 3 screenshots (above-fold, mid-page, after CTA click) with vision-analysis captions, each links to full-res blob
+- ✅ Experiment cards — 2 expandable accordion cards (not 4 flat cards); expand reveals hypothesis, variant change, metric, implementation hint
+- ✅ "Generate more experiments" premium teaser — locked UI element below the 2 cards, not yet functional
 
 ### Azure infrastructure
 - ✅ Azure Static Web Apps (frontend + CDN)
@@ -79,14 +100,20 @@ infra/AZURE_SETUP.md
 - ✅ Container Registry — persengineacr.azurecr.io
 - ✅ Azure AI Foundry — pers-engine-foundry (Canada Central)
 - ✅ Cosmos DB — pers-engine-db (serverless, analyses container)
-- ✅ Storage Account — persenginestore
+- ✅ Storage Account — persenginestore2 (agent-screenshots container)
 - ✅ Key Vault — pers-engine-kv
 - ✅ Application Insights — pers-engine-insights
 
-#### Still to do
+#### Still to do — core
 - ⬜ Replace template heuristics with real GPT-5.2 call (read secrets from Key Vault via managed identity)
 - ⬜ Wire detected tech stack into GPT-5.2 prompt (implementationHint per experiment)
 - ⬜ Cosmos DB caching (cache analysis results by URL)
+
+#### Still to do — UI / visual analysis
+- ⬜ Annotated screenshot overlay — draw bounding boxes / arrows on the above-fold screenshot to show suggested CTA repositioning (needs canvas or SVG layer over the `<img>`; coordinates come from vision analysis or a new structured GPT response)
+- ⬜ PDF / printable report export — generate a one-page summary (issues + 2 experiments + screenshots) as a downloadable PDF; consider `@react-pdf/renderer` or browser `window.print()` with a print stylesheet
+- ⬜ "Generate more experiments" — wire the premium teaser to an auth gate and the existing `/api/experiments` endpoint; returns all experiments (not sliced to 2)
+- ⬜ Experiment card screenshot context — show the relevant screenshot thumbnail (e.g. above-fold for CTA experiments) inside the expanded experiment card body so the before-state is visible alongside the variant description
 
 ## AI model
 
@@ -140,4 +167,4 @@ github.com/pal7/pers-engine
 ## Active branch
 
 - `main` — stable, deployed to Azure
-- `feature/v2-openai-integration` — **current V2 work** (GPT-5.2 integration, Key Vault secrets)
+- `feature/v4/agents` — **current work** (agentic Playwright analysis, screenshot blob storage)

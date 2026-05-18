@@ -29,6 +29,10 @@ export type TechStackCategory =
   | 'ecommerce'
   | 'heatmap'
   | 'crm'
+  | 'consent'
+  | 'monitoring'
+  | 'font'
+  | 'chat'
 
 export type TechStackConfidence =
   | 'definitive' // script tag or known domain found

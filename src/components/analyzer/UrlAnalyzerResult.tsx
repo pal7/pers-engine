@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
-import type { AnalysisExperiment, AnalysisResponse, TechStackCategory } from "../../types/analysis";
+import { ChevronDown, Lock } from 'lucide-react'
+import type { AgentObservation, AnalysisExperiment, AnalysisResponse, DetectedTech, TechStackCategory } from "../../types/analysis";
 
 type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -15,18 +15,44 @@ const CATEGORY_LABELS: Record<TechStackCategory, string> = {
   'ab-testing': 'A/B testing',
   personalisation: 'Personalisation',
   analytics: 'Analytics',
-  'tag-manager': 'Tag manager',
+  'tag-manager': 'Tag managers',
   cms: 'CMS',
-  framework: 'Framework',
+  framework: 'UI framework',
   cdp: 'CDP',
   ecommerce: 'Ecommerce',
-  heatmap: 'Heatmap',
+  heatmap: 'Heatmap & replay',
   crm: 'CRM',
+  consent: 'Consent & CMP',
+  monitoring: 'Monitoring',
+  font: 'Fonts',
+  chat: 'Chat & support',
+}
+
+const CATEGORY_ORDER: TechStackCategory[] = [
+  'tag-manager', 'analytics', 'ab-testing', 'personalisation',
+  'framework', 'cdp', 'cms', 'ecommerce', 'heatmap', 'crm',
+  'consent', 'monitoring', 'font', 'chat',
+]
+
+const SCREENSHOT_STEP_LABELS: Record<string, string> = {
+  screenshot: 'Above the fold',
+  scroll: 'Mid-page',
+  click: 'After CTA click',
+}
+
+function getObservationForScreenshot(
+  observations: AgentObservation[],
+  url: string,
+): AgentObservation | undefined {
+  return observations.find((o) => o.screenshotUrl === url)
 }
 
 export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGenerateExperiments }: UrlAnalyzerResultProps) {
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null)
+  const [expandedExperimentId, setExpandedExperimentId] = useState<string | null>(null)
   const debugData = result.debug;
+  const agentSession = result.agentSession;
+  const visibleExperiments = experiments?.slice(0, 2) ?? null;
 
   return (
     <section className='panel'>
@@ -130,15 +156,30 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
           </div>
 
           {result.techStack.length > 0 ? (
-            <div className='tech-stack-pills'>
-              {result.techStack.map((tech) => (
-                <span key={tech.name} className='tech-stack-pill'>
-                  <span className='tech-stack-pill__name'>{tech.name}</span>
-                  <span className={`badge tech-stack-chip__badge--${tech.category}`}>
-                    {CATEGORY_LABELS[tech.category]}
-                  </span>
-                </span>
-              ))}
+            <div className='tech-stack-groups' role='list' aria-label='Detected technologies'>
+              {CATEGORY_ORDER.filter((cat) => result.techStack.some((t) => t.category === cat)).map((cat) => {
+                const tools = result.techStack.filter((t) => t.category === cat)
+                return (
+                  <div key={cat} className='tech-stack-group' role='listitem'>
+                    <h4 className='tech-stack-group__label'>{CATEGORY_LABELS[cat]}</h4>
+                    <div className='tech-stack-group__chips'>
+                      {tools.map((tech: DetectedTech) => (
+                        <span
+                          key={tech.name}
+                          className='tech-stack-chip'
+                          title={tech.evidence}
+                          aria-label={`${tech.name} — ${tech.confidence === 'definitive' ? 'confirmed' : 'likely'}`}
+                        >
+                          <span className='tech-stack-chip__name'>{tech.name}</span>
+                          <span className={`badge tech-stack-chip__badge--${tech.category}`} aria-hidden='true'>
+                            {tech.confidence === 'definitive' ? '✓' : '~'}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <p className='tech-stack-empty'>No tools detected from page source.</p>
@@ -211,46 +252,88 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
             <p>Priority observations to address before investing in new tests.</p>
           </div>
 
-          <div className='issues-list'>
+          <ul className='issues-list' role='list'>
             {result.issues.map((issue) => {
               const isExpanded = expandedIssueId === issue.id
               return (
-                <article className='issue-card' key={issue.id}>
-                  <button
-                    className='issue-card__header'
-                    onClick={() => setExpandedIssueId(isExpanded ? null : issue.id)}
-                    aria-expanded={isExpanded}
-                    type='button'
-                  >
-                    <span className={`badge badge--severity-${issue.severity}`}>
-                      {issue.severity}
-                    </span>
-                    <span className='issue-card__title'>{issue.title}</span>
-                    <ChevronDown
-                      className={`issue-card__chevron${isExpanded ? ' issue-card__chevron--open' : ''}`}
-                      size={16}
-                    />
-                  </button>
-                  {isExpanded && (
-                    <div className='issue-card__body'>
-                      <p>{issue.detail}</p>
-                      <div className='issue-card__meta'>
-                        <div>
-                          <span className='label'>Impact</span>
-                          <span>{issue.impact}</span>
-                        </div>
-                        <div>
-                          <span className='label'>Confidence</span>
-                          <span>{issue.confidence}</span>
+                <li key={issue.id}>
+                  <article className='issue-card'>
+                    <button
+                      className='issue-card__header'
+                      onClick={() => setExpandedIssueId(isExpanded ? null : issue.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`issue-body-${issue.id}`}
+                      type='button'
+                    >
+                      <span className={`badge badge--severity-${issue.severity}`} aria-label={`Severity: ${issue.severity}`}>
+                        {issue.severity}
+                      </span>
+                      <span className='issue-card__title'>{issue.title}</span>
+                      <ChevronDown
+                        className={`issue-card__chevron${isExpanded ? ' issue-card__chevron--open' : ''}`}
+                        size={16}
+                        aria-hidden='true'
+                      />
+                    </button>
+                    {isExpanded && (
+                      <div
+                        id={`issue-body-${issue.id}`}
+                        className='issue-card__body'
+                        role='region'
+                        aria-label={issue.title}
+                      >
+                        <p>{issue.detail}</p>
+                        <div className='issue-card__meta'>
+                          <div>
+                            <span className='label'>Impact</span>
+                            <span>{issue.impact}</span>
+                          </div>
+                          <div>
+                            <span className='label'>Confidence</span>
+                            <span>{issue.confidence}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </article>
+                    )}
+                  </article>
+                </li>
               )
             })}
-          </div>
+          </ul>
         </section>
+
+        {agentSession && agentSession.screenshots.length > 0 && (
+          <section
+            className='url-analyzer-result__section'
+            aria-labelledby='analysis-screenshots-title'
+          >
+            <div className='url-analyzer-result__section-header'>
+              <h3 id='analysis-screenshots-title'>Agent screenshots</h3>
+              <p>Captured during the live browser session — used to generate experiment ideas below.</p>
+            </div>
+            <div className='screenshot-gallery'>
+              {agentSession.screenshots.map((url, i) => {
+                const obs = getObservationForScreenshot(agentSession.observations, url)
+                const label = obs ? (SCREENSHOT_STEP_LABELS[obs.action] ?? `Step ${obs.step}`) : `Screenshot ${i + 1}`
+                return (
+                  <figure key={url} className='screenshot-item'>
+                    <div className='screenshot-item__img-wrap'>
+                      <a href={url} target='_blank' rel='noopener noreferrer' aria-label={`Open ${label} screenshot in new tab`}>
+                        <img src={url} alt={label} className='screenshot-item__img' loading='lazy' />
+                      </a>
+                    </div>
+                    <figcaption className='screenshot-item__caption'>
+                      <span className='screenshot-item__label'>{label}</span>
+                      {obs?.result && (
+                        <p className='screenshot-item__analysis'>{obs.result}</p>
+                      )}
+                    </figcaption>
+                  </figure>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         <section
           className='url-analyzer-result__section'
@@ -258,7 +341,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
         >
           <div className='url-analyzer-result__section-header'>
             <h3 id='analysis-experiments-title'>Experiment suggestions</h3>
-            <p>Practical follow-up tests that build directly on the observed issues.</p>
+            <p>Top two A/B tests to run based on the identified issues.</p>
           </div>
 
           {experimentStatus === 'idle' && (
@@ -284,42 +367,75 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
             </p>
           )}
 
-          {experimentStatus === 'success' && experiments && (
-            <div className='url-analyzer-result__grid'>
-              {experiments.map((experiment) => (
-                <article
-                  className='url-analyzer-result__card'
-                  key={experiment.id}
-                >
-                  <strong>{experiment.title}</strong>
-                  <p>{experiment.hypothesis}</p>
-                  <dl className='url-analyzer-result__details'>
-                    <div>
-                      <dt className='label'>Impact</dt>
-                      <dd>{experiment.impact}</dd>
-                    </div>
-                    <div>
-                      <dt className='label'>Confidence</dt>
-                      <dd>{experiment.confidence}</dd>
-                    </div>
-                    <div>
-                      <dt className='label'>Variant</dt>
-                      <dd>{experiment.variant}</dd>
-                    </div>
-                    <div className='url-analyzer-result__details-full'>
-                      <dt className='label'>Metric</dt>
-                      <dd>{experiment.metric}</dd>
-                    </div>
-                    {experiment.implementationHint ? (
-                      <div className='url-analyzer-result__details-full'>
-                        <dt className='label'>Implementation hint</dt>
-                        <dd>{experiment.implementationHint}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </article>
-              ))}
-            </div>
+          {experimentStatus === 'success' && visibleExperiments && (
+            <>
+              <ul className='experiment-list-accordion' role='list'>
+                {visibleExperiments.map((experiment) => {
+                  const isExpanded = expandedExperimentId === experiment.id
+                  return (
+                    <li key={experiment.id}>
+                      <article className='experiment-card'>
+                        <button
+                          className='experiment-card__header'
+                          onClick={() => setExpandedExperimentId(isExpanded ? null : experiment.id)}
+                          aria-expanded={isExpanded}
+                          aria-controls={`experiment-body-${experiment.id}`}
+                          type='button'
+                        >
+                          <div className='experiment-card__title-row'>
+                            <span className='experiment-card__title'>{experiment.title}</span>
+                            <span className='experiment-card__badges'>
+                              {experiment.confidence && (
+                                <span className='badge badge--neutral' aria-label={`Confidence: ${experiment.confidence}`}>
+                                  {experiment.confidence}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <ChevronDown
+                            className={`issue-card__chevron${isExpanded ? ' issue-card__chevron--open' : ''}`}
+                            size={16}
+                            aria-hidden='true'
+                          />
+                        </button>
+                        {isExpanded && (
+                          <div
+                            id={`experiment-body-${experiment.id}`}
+                            className='experiment-card__body'
+                            role='region'
+                            aria-label={experiment.title}
+                          >
+                            <p className='experiment-card__hypothesis'>{experiment.hypothesis}</p>
+                            <dl className='experiment-card__details'>
+                              <div>
+                                <dt className='label'>Variant change</dt>
+                                <dd>{experiment.variant}</dd>
+                              </div>
+                              <div>
+                                <dt className='label'>Primary metric</dt>
+                                <dd>{experiment.metric}</dd>
+                              </div>
+                              {experiment.implementationHint ? (
+                                <div className='experiment-card__details-full'>
+                                  <dt className='label'>Implementation</dt>
+                                  <dd>{experiment.implementationHint}</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                          </div>
+                        )}
+                      </article>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              <div className='generate-more-teaser' aria-label='Premium feature'>
+                <Lock size={14} aria-hidden='true' />
+                <span>Generate more experiments</span>
+                <span className='badge badge--neutral'>Premium</span>
+              </div>
+            </>
           )}
         </section>
       </div>

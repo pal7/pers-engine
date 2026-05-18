@@ -59,7 +59,7 @@ export function UrlAnalyzerStatus({
           <h2>{content.title}</h2>
           <p>{content.copy}</p>
         </div>
-        <span className="badge badge--neutral">
+        <span className="badge badge--neutral" aria-hidden="true">
           {status === 'loading' ? 'In progress' : status === 'error' ? 'Needs retry' : 'Awaiting URL'}
         </span>
       </div>

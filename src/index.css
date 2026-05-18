@@ -176,7 +176,7 @@ strong {
 }
 
 .content-grid--primary {
-  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.35fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
 }
 
 .panel {
@@ -190,6 +190,7 @@ strong {
 
 .panel__header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
@@ -1191,6 +1192,50 @@ strong {
 .tech-stack-chip__badge--heatmap       { background: rgba(249, 115, 22, 0.16); color: #fdba74; }
 .tech-stack-chip__badge--personalisation { background: rgba(14, 165, 233, 0.16); color: #7dd3fc; }
 .tech-stack-chip__badge--crm           { background: rgba(168, 85, 247, 0.16); color: #d8b4fe; }
+.tech-stack-chip__badge--consent       { background: rgba(251, 191, 36, 0.16); color: #fde68a; }
+.tech-stack-chip__badge--monitoring    { background: rgba(239, 68, 68, 0.16);  color: #fca5a5; }
+.tech-stack-chip__badge--font          { background: rgba(20, 184, 166, 0.16); color: #5eead4; }
+.tech-stack-chip__badge--chat          { background: rgba(99, 102, 241, 0.18); color: #a5b4fc; }
+
+/* ── Tech stack grouped layout ───────────────────────────────────────────── */
+
+.tech-stack-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tech-stack-group__label {
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tech-stack-group__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tech-stack-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  cursor: default;
+}
+
+.tech-stack-chip__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
 
 .tech-stack-empty {
   color: var(--text-muted);
@@ -1446,6 +1491,36 @@ strong {
   .analysis-stepper__connector {
     top: 18px;
   }
+
+  .hero-input {
+    padding: 32px 16px 24px;
+  }
+
+  .hero-input__row {
+    flex-direction: column;
+  }
+
+  .hero-input__cta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .panel__header {
+    gap: 10px;
+  }
+
+  .app-shell__header {
+    padding: 20px 16px;
+    border-radius: 20px;
+  }
+
+  .url-analyzer-result__details {
+    grid-template-columns: 1fr;
+  }
 }
 
 .url-analyzer-debug {
@@ -1616,6 +1691,191 @@ strong {
 .tech-stack-pill .badge {
   padding: 2px 7px;
   font-size: 0.68rem;
+}
+
+/* ── Screenshot gallery ───────────────────────────────────────────────────── */
+
+.screenshot-gallery {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.screenshot-item {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.screenshot-item__img-wrap {
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #0b1220;
+  aspect-ratio: 16 / 9;
+}
+
+.screenshot-item__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.screenshot-item__img-wrap a:hover .screenshot-item__img {
+  transform: scale(1.02);
+}
+
+.screenshot-item__caption {
+  display: grid;
+  gap: 6px;
+}
+
+.screenshot-item__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.screenshot-item__analysis {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 980px) {
+  .screenshot-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Experiment accordion ─────────────────────────────────────────────────── */
+
+.experiment-list-accordion {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.experiment-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.experiment-card:has(.experiment-card__header[aria-expanded="true"]) {
+  border-color: rgba(20, 184, 166, 0.22);
+}
+
+.experiment-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.experiment-card__header:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.experiment-card__title-row {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.experiment-card__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.experiment-card__badges {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.experiment-card__body {
+  display: grid;
+  gap: 14px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.experiment-card__hypothesis {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.experiment-card__details {
+  display: grid;
+  gap: 12px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.experiment-card__details div {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.experiment-card__details dd {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.experiment-card__details-full {
+  grid-column: 1 / -1;
+}
+
+/* ── Generate more experiments (premium teaser) ───────────────────────────── */
+
+.generate-more-teaser {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 20px;
+  border: 1px dashed rgba(148, 163, 184, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.04);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: default;
+  user-select: none;
 }
 
 /* ── Generate experiments button ──────────────────────────────────────────── */

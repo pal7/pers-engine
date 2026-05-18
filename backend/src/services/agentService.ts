@@ -122,10 +122,38 @@ export async function runAgentAnalysis(
     const interceptedUrls: string[] = []
     page.on('request', (req) => interceptedUrls.push(req.url()))
 
+    // Capture console errors
+    const consoleErrors: string[] = []
+    page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()) })
+
     // Step 1: navigate
     await withStepTimeout('navigate', async () => {
       await page.goto(url, { waitUntil: 'networkidle', timeout: STEP_TIMEOUT_MS })
       emit({ step: 1, action: 'navigate', target: url, result: `Navigated to ${page.url()}` })
+    }, undefined)
+
+    // Step 1b: extract runtime signals not available from static HTML
+    await withStepTimeout('runtime signals', async () => {
+      const [metaTags, localStorageKeys, iframeSrcs] = await Promise.all([
+        page.evaluate(() => ({
+          description: document.querySelector('meta[name="description"]')?.getAttribute('content') ?? null,
+          ogTitle: document.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? null,
+          viewport: document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? null,
+        })),
+        page.evaluate(() => { try { return Object.keys(localStorage) } catch { return [] } }),
+        page.evaluate(() =>
+          Array.from(document.querySelectorAll('iframe[src]')).map((el) => el.getAttribute('src') ?? '').filter(Boolean)
+        ),
+      ])
+
+      const signals: string[] = []
+      if (metaTags.description) signals.push(`Meta description: "${metaTags.description.slice(0, 80)}"`)
+      if (metaTags.ogTitle) signals.push(`OG title: "${metaTags.ogTitle}"`)
+      if (localStorageKeys.length) signals.push(`localStorage keys: ${localStorageKeys.slice(0, 8).join(', ')}`)
+      if (iframeSrcs.length) signals.push(`Iframes: ${iframeSrcs.slice(0, 4).join(', ')}`)
+      if (consoleErrors.length) signals.push(`Console errors: ${consoleErrors.slice(0, 3).join(' | ')}`)
+
+      if (signals.length) emit({ step: 1, action: 'extract', result: signals.join(' · ') })
     }, undefined)
 
     // Step 2: above-fold screenshot + vision
