@@ -478,6 +478,135 @@ const DETECTION_RULES: DetectionRule[] = [
       { target: 'inline', pattern: /window\.mouseflow/i, confidence: 'likely', evidence: 'Found window.mouseflow in inline script' },
     ],
   },
+
+  // ── CONSENT & CMP ────────────────────────────────────────────────────────────
+
+  {
+    name: 'OneTrust',
+    category: 'consent',
+    checks: [
+      { target: 'scriptSrc', pattern: /cdn\.cookielaw\.org|onetrust\.com/i, confidence: 'definitive', evidence: 'Found script src from cdn.cookielaw.org (OneTrust)' },
+      { target: 'inline', pattern: /window\.OneTrust|OptanonWrapper/i, confidence: 'likely', evidence: 'Found OneTrust consent API in inline script' },
+    ],
+  },
+  {
+    name: 'Cookiebot',
+    category: 'consent',
+    checks: [
+      { target: 'scriptSrc', pattern: /consent\.cookiebot\.com/i, confidence: 'definitive', evidence: 'Found script src from consent.cookiebot.com' },
+      { target: 'html', pattern: /data-cookieconsent|cookiebot/i, confidence: 'likely', evidence: 'Found Cookiebot data attribute in HTML' },
+    ],
+  },
+  {
+    name: 'Osano',
+    category: 'consent',
+    checks: [
+      { target: 'scriptSrc', pattern: /cmp\.osano\.com/i, confidence: 'definitive', evidence: 'Found script src from cmp.osano.com' },
+    ],
+  },
+  {
+    name: 'TrustArc',
+    category: 'consent',
+    checks: [
+      { target: 'scriptSrc', pattern: /consent\.trustarc\.com|truste\.com/i, confidence: 'definitive', evidence: 'Found script src from consent.trustarc.com' },
+      { target: 'inline', pattern: /truste\.cma\.callApi|TrustArc/i, confidence: 'likely', evidence: 'Found TrustArc API in inline script' },
+    ],
+  },
+
+  // ── ERROR MONITORING & RUM ───────────────────────────────────────────────────
+
+  {
+    name: 'Sentry',
+    category: 'monitoring',
+    checks: [
+      { target: 'scriptSrc', pattern: /browser\.sentry-cdn\.com|sentry\.io\/browser/i, confidence: 'definitive', evidence: 'Found Sentry browser SDK script' },
+      { target: 'inline', pattern: /Sentry\.init|window\.__SENTRY__/i, confidence: 'likely', evidence: 'Found Sentry.init or __SENTRY__ in inline script' },
+    ],
+  },
+  {
+    name: 'Datadog RUM',
+    category: 'monitoring',
+    checks: [
+      { target: 'scriptSrc', pattern: /browser-intake-datadoghq\.com|datadoghq\.com\/browser-sdk/i, confidence: 'definitive', evidence: 'Found Datadog RUM script src' },
+      { target: 'inline', pattern: /window\.DD_RUM|datadogRum\.init/i, confidence: 'likely', evidence: 'Found DD_RUM or datadogRum.init in inline script' },
+    ],
+  },
+  {
+    name: 'New Relic',
+    category: 'monitoring',
+    checks: [
+      { target: 'scriptSrc', pattern: /js-agent\.newrelic\.com/i, confidence: 'definitive', evidence: 'Found New Relic agent script src' },
+      { target: 'inline', pattern: /window\.newrelic|NREUM/i, confidence: 'likely', evidence: 'Found window.newrelic or NREUM in inline script' },
+    ],
+  },
+  {
+    name: 'Dynatrace',
+    category: 'monitoring',
+    checks: [
+      { target: 'scriptSrc', pattern: /dynatrace\.com.*\/ruxitagent|ruxitagent/i, confidence: 'definitive', evidence: 'Found Dynatrace RuxitAgent script' },
+      { target: 'inline', pattern: /window\.dtrum/i, confidence: 'likely', evidence: 'Found window.dtrum (Dynatrace) in inline script' },
+    ],
+  },
+
+  // ── FONT PROVIDERS ───────────────────────────────────────────────────────────
+
+  {
+    name: 'Google Fonts',
+    category: 'font',
+    checks: [
+      { target: 'html', pattern: /fonts\.googleapis\.com|fonts\.gstatic\.com/i, confidence: 'definitive', evidence: 'Found fonts.googleapis.com reference' },
+    ],
+  },
+  {
+    name: 'Adobe Fonts',
+    category: 'font',
+    checks: [
+      { target: 'html', pattern: /use\.typekit\.net/i, confidence: 'definitive', evidence: 'Found use.typekit.net (Adobe Fonts) reference' },
+    ],
+  },
+
+  // ── CHAT & SUPPORT ───────────────────────────────────────────────────────────
+
+  {
+    name: 'Intercom',
+    category: 'chat',
+    checks: [
+      { target: 'scriptSrc', pattern: /widget\.intercom\.io/i, confidence: 'definitive', evidence: 'Found Intercom widget script src' },
+      { target: 'inline', pattern: /window\.Intercom|intercomSettings/i, confidence: 'likely', evidence: 'Found window.Intercom or intercomSettings in inline script' },
+    ],
+  },
+  {
+    name: 'Zendesk',
+    category: 'chat',
+    checks: [
+      { target: 'scriptSrc', pattern: /static\.zdassets\.com|ekr\.zdassets\.com/i, confidence: 'definitive', evidence: 'Found Zendesk widget script src' },
+      { target: 'inline', pattern: /window\.zE\b|zESettings/i, confidence: 'likely', evidence: 'Found window.zE (Zendesk) in inline script' },
+    ],
+  },
+  {
+    name: 'Drift',
+    category: 'chat',
+    checks: [
+      { target: 'scriptSrc', pattern: /js\.driftt\.com|js\.drift\.com/i, confidence: 'definitive', evidence: 'Found Drift script src' },
+      { target: 'inline', pattern: /window\.drift\b/i, confidence: 'likely', evidence: 'Found window.drift in inline script' },
+    ],
+  },
+  {
+    name: 'Freshchat',
+    category: 'chat',
+    checks: [
+      { target: 'scriptSrc', pattern: /wchat\.freshchat\.com|snippets\.freshchat\.com/i, confidence: 'definitive', evidence: 'Found Freshchat script src' },
+      { target: 'inline', pattern: /window\.fcWidget/i, confidence: 'likely', evidence: 'Found window.fcWidget (Freshchat) in inline script' },
+    ],
+  },
+  {
+    name: 'HubSpot Chat',
+    category: 'chat',
+    checks: [
+      { target: 'scriptSrc', pattern: /js\.hs-scripts\.com|js\.hubspot\.com/i, confidence: 'definitive', evidence: 'Found HubSpot script src' },
+      { target: 'inline', pattern: /window\.HubSpotConversations/i, confidence: 'likely', evidence: 'Found HubSpotConversations in inline script' },
+    ],
+  },
 ]
 
 export function detectTechStack(html: string): DetectedTech[] {
