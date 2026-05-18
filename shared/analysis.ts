@@ -4,7 +4,10 @@ export interface AnalysisRequest {
 
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
 
-export type AnalysisProgressStepId = 'fetch' | 'browser-fallback' | 'rag' | 'gpt' | 'experiments'
+export type AnalysisProgressStepId =
+  | 'fetch' | 'browser-fallback' | 'rag' | 'gpt' | 'experiments'
+  | 'agent-navigate' | 'agent-screenshot' | 'agent-tech'
+  | 'agent-scroll' | 'agent-click' | 'agent-form' | 'agent-synthesise'
 export type AnalysisProgressStatus = 'active' | 'done' | 'warn' | 'error'
 
 export interface AnalysisProgressEvent {
@@ -104,6 +107,28 @@ export interface AnalysisResponse {
   experiments?: AnalysisExperiment[]
   techStack: DetectedTech[]
   debug?: AnalysisDebugData
+  agentSession?: AgentSession
+}
+
+export type AgentAction = 'navigate' | 'screenshot' | 'scroll' | 'click' | 'extract'
+
+export interface AgentObservation {
+  step: number
+  action: AgentAction
+  target?: string
+  result: string
+  screenshotUrl?: string
+}
+
+export interface AgentSession {
+  sessionId: string
+  url: string
+  observations: AgentObservation[]
+  screenshots: string[]
+  techStack: DetectedTech[]
+  pageType: AnalysisPageType
+  summary: string
+  durationMs: number
 }
 
 export interface ExperimentRequest {

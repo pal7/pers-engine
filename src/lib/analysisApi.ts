@@ -1,4 +1,6 @@
 import type {
+  AgentObservation,
+  AgentSession,
   AnalysisExperiment,
   AnalysisProgressEvent,
   AnalysisRequest,
@@ -17,6 +19,8 @@ const API_BASE = (() => {
 const ANALYSIS_API_URL = `${API_BASE}/api/analyze`
 const ANALYSIS_STREAM_URL = `${API_BASE}/api/analyze/stream`
 const EXPERIMENTS_API_URL = `${API_BASE}/api/experiments`
+const AGENT_API_URL = `${API_BASE}/api/agent-analyze`
+const AGENT_STREAM_URL = `${API_BASE}/api/agent-analyze/stream`
 
 async function apiPost<T>(url: string, body: unknown): Promise<T> {
   let response: Response
@@ -116,4 +120,38 @@ export function submitExperiments(
   request: ExperimentRequest,
 ): Promise<{ experiments: AnalysisExperiment[] }> {
   return apiPost<{ experiments: AnalysisExperiment[] }>(EXPERIMENTS_API_URL, request)
+}
+
+export function submitAgentAnalysis(url: string): Promise<AgentSession> {
+  return apiPost<AgentSession>(AGENT_API_URL, { url })
+}
+
+export function submitAgentStream(
+  url: string,
+  onObservation: (obs: AgentObservation) => void,
+  onResult: (session: AgentSession) => void,
+  onError: (message: string) => void,
+): () => void {
+  const es = new EventSource(`${AGENT_STREAM_URL}?url=${encodeURIComponent(url)}`)
+
+  es.addEventListener('observation', (e: MessageEvent) => {
+    try { onObservation(JSON.parse(e.data) as AgentObservation) } catch { /* malformed */ }
+  })
+  es.addEventListener('result', (e: MessageEvent) => {
+    try {
+      onResult(JSON.parse(e.data) as AgentSession)
+      es.close()
+    } catch { /* malformed */ }
+  })
+  es.addEventListener('error', (e: MessageEvent) => {
+    try {
+      const parsed = JSON.parse(e.data) as { message?: string }
+      onError(parsed.message ?? 'Agent analysis failed.')
+    } catch {
+      onError('Agent analysis failed.')
+    }
+    es.close()
+  })
+
+  return () => es.close()
 }

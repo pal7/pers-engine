@@ -164,6 +164,37 @@ function parseIssues(raw: unknown): AnalysisIssue[] {
   })) as AnalysisIssue[]
 }
 
+export async function analyzeWithVision(imageUrl: string, prompt: string): Promise<string> {
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT
+  const apiKey = process.env.AZURE_OPENAI_KEY
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-5.2'
+
+  if (!apiKey || !endpoint) {
+    throw new Error('AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT are required for vision analysis.')
+  }
+
+  const client = new AzureOpenAI({ endpoint, apiKey, deployment, apiVersion: '2025-01-01-preview', timeout: 20_000 })
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: deployment,
+      max_completion_tokens: 512,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: imageUrl } },
+            { type: 'text', text: prompt },
+          ],
+        },
+      ],
+    })
+    return completion.choices[0]?.message?.content ?? ''
+  } catch (error) {
+    throw new Error(`Azure OpenAI vision request failed: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
 export async function analyzeWithAI(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
