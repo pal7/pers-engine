@@ -1,6 +1,60 @@
 import { useState } from 'react'
 import type { AnalysisProgressEvent } from '../../types/analysis'
 
+function DataFlowAnimation() {
+  return (
+    <div className="data-flow" aria-hidden="true">
+      <div className="data-flow__node">
+        <div className="data-flow__node-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M6 9c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="9" cy="9" r="1.25" fill="currentColor"/>
+          </svg>
+        </div>
+        <span className="data-flow__node-label">Your website</span>
+      </div>
+
+      <div className="data-flow__edge">
+        <div className="data-flow__edge-track">
+          <div className="data-flow__edge-dot" style={{ '--dot-delay': '0s' } as React.CSSProperties} />
+          <div className="data-flow__edge-dot" style={{ '--dot-delay': '0.55s' } as React.CSSProperties} />
+          <div className="data-flow__edge-dot" style={{ '--dot-delay': '1.1s' } as React.CSSProperties} />
+        </div>
+        <span className="data-flow__edge-label">Playwright · RAG</span>
+      </div>
+
+      <div className="data-flow__node data-flow__node--active">
+        <div className="data-flow__node-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 2L11.2 7H16.5L12.2 10.2L14 15L9 11.9L4 15L5.8 10.2L1.5 7H6.8L9 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span className="data-flow__node-label">GPT-5.2</span>
+      </div>
+
+      <div className="data-flow__edge">
+        <div className="data-flow__edge-track">
+          <div className="data-flow__edge-dot" style={{ '--dot-delay': '0.28s' } as React.CSSProperties} />
+          <div className="data-flow__edge-dot" style={{ '--dot-delay': '0.83s' } as React.CSSProperties} />
+          <div className="data-flow__edge-dot" style={{ '--dot-delay': '1.38s' } as React.CSSProperties} />
+        </div>
+        <span className="data-flow__edge-label">insights · A/B tests</span>
+      </div>
+
+      <div className="data-flow__node">
+        <div className="data-flow__node-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="2" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M5.5 9.5l2 2L12.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span className="data-flow__node-label">CRO insights</span>
+      </div>
+    </div>
+  )
+}
+
 interface AnalysisActivityLogProps {
   events: AnalysisProgressEvent[]
 }
@@ -59,10 +113,12 @@ export function AnalysisActivityLog({ events }: AnalysisActivityLogProps) {
       <div className="panel__header url-analyzer-status__header">
         <div>
           <h2>Analyzing your website…</h2>
-          <p>Preparing a product-style read on clarity, trust placement, visitor friction, and likely test opportunities.</p>
+          <p>Sending page data to GPT-5.2 for CRO analysis and experiment generation.</p>
         </div>
         <span className="badge badge--neutral">In progress</span>
       </div>
+
+      <DataFlowAnimation />
 
       <div className="activity-log" aria-label="Analysis pipeline progress">
         {events.map((event, i) => (

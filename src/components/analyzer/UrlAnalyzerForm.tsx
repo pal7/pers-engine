@@ -7,6 +7,7 @@ interface UrlAnalyzerFormProps {
   status: AnalysisStatus
   onChange: (value: string) => void
   onSubmit: (normalizedUrl: string) => void
+  onReset: () => void
 }
 
 export function UrlAnalyzerForm({
@@ -14,22 +15,20 @@ export function UrlAnalyzerForm({
   status,
   onChange,
   onSubmit,
+  onReset,
 }: UrlAnalyzerFormProps) {
   const hasValue = value.trim().length > 0
   const normalizedUrl = normalizeWebsiteUrl(value)
   const isValid = isValidWebsiteUrl(value)
+  const isDone = status === 'success'
   const validationMessage =
-    hasValue && !isValid
+    hasValue && !isValid && !isDone
       ? 'Enter a valid website URL like example.com or https://example.com.'
       : ''
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (!normalizedUrl || status === 'loading') {
-      return
-    }
-
+    if (!normalizedUrl || status === 'loading' || isDone) return
     onSubmit(normalizedUrl)
   }
 
@@ -45,18 +44,19 @@ export function UrlAnalyzerForm({
             aria-describedby={validationMessage ? 'url-validation-msg' : undefined}
             aria-invalid={validationMessage ? 'true' : undefined}
             autoComplete="url"
-            className="hero-input__field"
+            className={`hero-input__field${isDone ? ' hero-input__field--done' : ''}`}
             id="website-url"
-            onChange={(event) => onChange(event.target.value)}
+            onChange={(event) => !isDone && onChange(event.target.value)}
             placeholder="Enter any website URL to analyse"
+            readOnly={isDone}
             type="text"
             value={value}
           />
           <button
             className="hero-input__cta button button--primary"
-            disabled={status === 'loading' || !isValid}
+            disabled={status === 'loading' || !isValid || isDone}
             type="submit"
-            aria-disabled={status === 'loading' || !isValid}
+            aria-disabled={status === 'loading' || !isValid || isDone}
           >
             {status === 'loading' ? 'Analysing…' : 'Analyse'}
           </button>
@@ -69,9 +69,15 @@ export function UrlAnalyzerForm({
         ) : null}
       </form>
 
-      <p className="hero-input__tagline">
-        Detects tech stack · Identifies UX issues · Generates A/B experiments
-      </p>
+      {isDone ? (
+        <button className="hero-input__reset" onClick={onReset} type="button">
+          ← Analyse a different website
+        </button>
+      ) : (
+        <p className="hero-input__tagline">
+          Analyses the website · Identifies issues · Generates A/B experiments
+        </p>
+      )}
     </section>
   )
 }

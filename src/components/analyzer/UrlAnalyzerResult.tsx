@@ -1,8 +1,25 @@
 import { useState } from 'react'
-import { ChevronDown, Lock } from 'lucide-react'
-import type { AgentObservation, AnalysisExperiment, AnalysisResponse, DetectedTech, TechStackCategory } from "../../types/analysis";
+import { ChevronDown } from 'lucide-react'
+import type { AgentObservation, AnalysisExperiment, AnalysisExtractionQuality, AnalysisResponse, DetectedTech, TechStackCategory } from "../../types/analysis";
 
 type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
+
+const QUALITY_LABELS: Record<AnalysisExtractionQuality, string> = {
+  good: 'Complete',
+  limited: 'Partial',
+  blocked: 'Blocked',
+}
+
+function getExtractionNote(quality: AnalysisExtractionQuality, warnings: string[]): string | null {
+  if (quality === 'blocked') return 'Blocked by anti-bot protection'
+  if (quality === 'limited') {
+    const text = warnings.join(' ').toLowerCase()
+    if (text.includes('timeout')) return 'Timed out — partial data captured'
+    if (text.includes('javascript')) return 'JS-heavy page — partial extraction'
+    return 'Partial extraction'
+  }
+  return null
+}
 
 interface UrlAnalyzerResultProps {
   result: AnalysisResponse;
@@ -68,9 +85,17 @@ function getExperimentScreenshot(
 export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGenerateExperiments }: UrlAnalyzerResultProps) {
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null)
   const [expandedExperimentId, setExpandedExperimentId] = useState<string | null>(null)
+  const [showMoreToast, setShowMoreToast] = useState(false)
+  const [signalsExpanded, setSignalsExpanded] = useState(false)
   const debugData = result.debug;
   const agentSession = result.agentSession;
   const visibleExperiments = experiments?.slice(0, 2) ?? null;
+  const extractionNote = getExtractionNote(result.extractionQuality, result.extractionWarnings)
+
+  const handleGenerateMore = () => {
+    setShowMoreToast(true)
+    setTimeout(() => setShowMoreToast(false), 3000)
+  }
 
   return (
     <section className='panel'>
@@ -97,72 +122,57 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
             </div>
             <div>
               <dt className='label'>Extraction quality</dt>
-              <dd>{result.extractionQuality}</dd>
+              <dd className={`extraction-quality extraction-quality--${result.extractionQuality}`}>
+                {QUALITY_LABELS[result.extractionQuality]}
+              </dd>
             </div>
           </dl>
-          {result.extractionWarnings.length > 0 ? (
-            <div>
-              <p className='label'>Extraction warnings</p>
-              <ul>
-                {result.extractionWarnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
+          {extractionNote && (
+            <div className={`extraction-note extraction-note--${result.extractionQuality}`}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <path d="M6.5 1.5a5 5 0 100 10 5 5 0 000-10zM6.5 4v3M6.5 8.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <span>{extractionNote}</span>
             </div>
-          ) : null}
+          )}
         </article>
 
-        <section
-          className='url-analyzer-result__section'
-          aria-labelledby='analysis-evidence-title'
-        >
-          <div className='url-analyzer-result__section-header'>
-            <h3 id='analysis-evidence-title'>Observed evidence</h3>
-            <p>Extracted page signals used to generate issues and experiment ideas.</p>
-          </div>
-
-          <article className='url-analyzer-result__card'>
-            <strong>{result.evidence.heroText}</strong>
-            <dl className='url-analyzer-result__details'>
-              <div>
-                <dt className='label'>Page type</dt>
-                <dd>{result.evidence.pageType}</dd>
-              </div>
-              <div>
-                <dt className='label'>CTA count</dt>
-                <dd>{result.evidence.ctaCount}</dd>
-              </div>
-              <div>
-                <dt className='label'>Form present</dt>
-                <dd>{result.evidence.hasForm ? "Yes" : "No"}</dd>
-              </div>
-              <div>
-                <dt className='label'>Primary CTA above fold</dt>
-                <dd>{result.evidence.primaryCTAAboveFold ? "Yes" : "No"}</dd>
-              </div>
-              <div className='url-analyzer-result__details-full'>
-                <dt className='label'>Trust signals visible</dt>
-                <dd>{result.evidence.trustSignalsVisible ? "Yes" : "No"}</dd>
-              </div>
-              <div className='url-analyzer-result__details-full'>
-                <dt className='label'>Extracted title</dt>
-                <dd>{result.extractedSignals.title || "None detected"}</dd>
-              </div>
-              <div className='url-analyzer-result__details-full'>
-                <dt className='label'>First H1</dt>
-                <dd>{result.extractedSignals.h1 || "None detected"}</dd>
-              </div>
-              <div className='url-analyzer-result__details-full'>
-                <dt className='label'>Candidate CTAs</dt>
-                <dd>
-                  {result.extractedSignals.ctaTexts.length > 0
-                    ? result.extractedSignals.ctaTexts.join(", ")
-                    : "None detected"}
-                </dd>
-              </div>
-            </dl>
-          </article>
-        </section>
+        <article className='signals-accordion'>
+          <button
+            className='signals-accordion__header'
+            onClick={() => setSignalsExpanded((v) => !v)}
+            aria-expanded={signalsExpanded}
+            aria-controls='signals-body'
+            type='button'
+          >
+            <h3 className='signals-accordion__title'>Page signals</h3>
+            <span className='label signals-accordion__sub'>Indicators used in our analysis and experiment tools</span>
+            <ChevronDown
+              className={`issue-card__chevron${signalsExpanded ? ' issue-card__chevron--open' : ''}`}
+              size={16}
+              aria-hidden='true'
+            />
+          </button>
+          {signalsExpanded && (
+            <div id='signals-body' className='signals-accordion__body'>
+              <table className='signals-table'>
+                <tbody>
+                  <tr><td className='signals-table__key'>Page type</td><td className='signals-table__val'>{result.evidence.pageType}</td></tr>
+                  <tr><td className='signals-table__key'>Form present</td><td className='signals-table__val'>{result.evidence.hasForm ? 'Yes' : 'No'}</td></tr>
+                  <tr><td className='signals-table__key'>Primary CTA above fold</td><td className='signals-table__val'>{result.evidence.primaryCTAAboveFold ? 'Yes' : 'No'}</td></tr>
+                  <tr><td className='signals-table__key'>Trust signals visible</td><td className='signals-table__val'>{result.evidence.trustSignalsVisible ? 'Yes' : 'No'}</td></tr>
+                  <tr><td className='signals-table__key'>CTA count</td><td className='signals-table__val'>{result.evidence.ctaCount}</td></tr>
+                  <tr><td className='signals-table__key'>Button count</td><td className='signals-table__val'>{result.extractedSignals.buttonCount}</td></tr>
+                  <tr><td className='signals-table__key'>Page title</td><td className='signals-table__val'>{result.extractedSignals.title || 'None detected'}</td></tr>
+                  <tr><td className='signals-table__key'>First H1</td><td className='signals-table__val'>{result.extractedSignals.h1 || 'None detected'}</td></tr>
+                  {result.extractedSignals.ctaTexts.length > 0 && (
+                    <tr><td className='signals-table__key'>Candidate CTAs</td><td className='signals-table__val'>{result.extractedSignals.ctaTexts.join(' · ')}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </article>
 
         <section
           className='url-analyzer-result__section'
@@ -283,10 +293,10 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
                       aria-controls={`issue-body-${issue.id}`}
                       type='button'
                     >
+                      <span className='issue-card__title'>{issue.title}</span>
                       <span className={`badge badge--severity-${issue.severity}`} aria-label={`Severity: ${issue.severity}`}>
                         {issue.severity}
                       </span>
-                      <span className='issue-card__title'>{issue.title}</span>
                       <ChevronDown
                         className={`issue-card__chevron${isExpanded ? ' issue-card__chevron--open' : ''}`}
                         size={16}
@@ -301,16 +311,14 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
                         aria-label={issue.title}
                       >
                         <p>{issue.detail}</p>
-                        <div className='issue-card__meta'>
-                          <div>
-                            <span className='label'>Impact</span>
-                            <span>{issue.impact}</span>
+                        {issue.impact && (
+                          <div className='issue-card__meta'>
+                            <div>
+                              <span className='label'>Impact</span>
+                              <span>{issue.impact}</span>
+                            </div>
                           </div>
-                          <div>
-                            <span className='label'>Confidence</span>
-                            <span>{issue.confidence}</span>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </article>
@@ -407,7 +415,10 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
                             <span className='experiment-card__title'>{experiment.title}</span>
                             <span className='experiment-card__badges'>
                               {experiment.confidence && (
-                                <span className='badge badge--neutral' aria-label={`Confidence: ${experiment.confidence}`}>
+                                <span
+                                  className={`badge badge--severity-${experiment.confidence.toLowerCase()}`}
+                                  aria-label={`Confidence: ${experiment.confidence}`}
+                                >
                                   {experiment.confidence}
                                 </span>
                               )}
@@ -466,10 +477,21 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
                 })}
               </ul>
 
-              <div className='generate-more-teaser' aria-label='Premium feature'>
-                <Lock size={14} aria-hidden='true' />
-                <span>Generate more experiments</span>
-                <span className='badge badge--neutral'>Premium</span>
+              <div className='generate-more-wrap'>
+                <button
+                  className='generate-more-btn'
+                  onClick={handleGenerateMore}
+                  type='button'
+                  aria-label='Generate more experiments and insights'
+                >
+                  <span>Generate more experiments & insights</span>
+                  <span className='badge badge--neutral'>Premium</span>
+                </button>
+                {showMoreToast && (
+                  <div className='generate-more-toast' role='status' aria-live='polite'>
+                    Feature in development — coming soon
+                  </div>
+                )}
               </div>
             </>
           )}

@@ -25,6 +25,17 @@ export function UrlAnalyzerPage() {
     }
   }, [])
 
+  const handleReset = () => {
+    cancelStreamRef.current?.()
+    setStatus('idle')
+    setErrorMessage('')
+    setResult(null)
+    setProgressEvents([])
+    setExperiments(null)
+    setExperimentStatus('idle')
+    setRawUrl('')
+  }
+
   const handleSubmit = (normalizedUrl: string) => {
     cancelStreamRef.current?.()
 
@@ -94,6 +105,7 @@ export function UrlAnalyzerPage() {
       <div className="url-analyzer-page">
         <UrlAnalyzerForm
           onChange={setRawUrl}
+          onReset={handleReset}
           onSubmit={handleSubmit}
           status={status}
           value={rawUrl}
