@@ -5,8 +5,10 @@ import { extractRenderedSignals } from './services/extractRenderedSignals'
 import { generateIssues } from './services/generateIssues'
 import { analyzeWithAI, buildUserPromptPreview } from './services/openAiService'
 import { retrieveSimilarAnalyses } from './services/ragService'
+import { runAgentAnalysis } from './services/agentService'
 import type { ExtractedPageSignals } from './services/extractPageSignals'
 import type {
+  AgentSession,
   AnalysisEvidence,
   AnalysisIssue,
   AnalysisProgressEvent,
@@ -102,6 +104,13 @@ export async function analyzeWebsite(
 
   const analyzedUrl = new URL(request.url).toString()
   const hostname = new URL(analyzedUrl).hostname.replace(/^www\./, '')
+
+  // Start agent in parallel immediately — it has its own 60 s timeout
+  emit({ id: 'agent-navigate', label: 'Starting browser agent…', status: 'active' })
+  const agentPromise: Promise<AgentSession | null> = runAgentAnalysis(analyzedUrl).catch((err) => {
+    console.warn('[analyze] agent failed:', err instanceof Error ? err.message : String(err))
+    return null
+  })
 
   emit({ id: 'fetch', label: 'Fetching page…', status: 'active' })
   const htmlResult = await extractHtmlSignals(analyzedUrl)
@@ -209,6 +218,18 @@ export async function analyzeWebsite(
     ]),
   )
 
+  // Await the agent — it started in parallel so this is rarely a bottleneck
+  const agentSession = await agentPromise
+  if (agentSession) {
+    emit({ id: 'agent-synthesise', label: 'Browser agent complete', status: 'done', detail: `${agentSession.screenshots.length} screenshots captured` })
+    // Merge any network-intercepted tech the static detector missed
+    for (const t of agentSession.techStack) {
+      if (!techStack.some((s) => s.name === t.name)) techStack.push(t)
+    }
+  } else {
+    emit({ id: 'agent-synthesise', label: 'Browser agent did not complete', status: 'warn' })
+  }
+
   console.log('[analyze] resolved URL:', bestExtraction.signals.finalUrl || analyzedUrl)
   console.log('[analyze] extraction mode:', bestExtraction.extractionMode)
   console.log('[analyze] extraction quality:', bestExtraction.extractionQuality)
@@ -232,5 +253,6 @@ export async function analyzeWebsite(
     },
     issues,
     techStack,
+    agentSession: agentSession ?? undefined,
   }
 }

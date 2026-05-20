@@ -47,6 +47,24 @@ function getObservationForScreenshot(
   return observations.find((o) => o.screenshotUrl === url)
 }
 
+// Pick the most relevant agent screenshot for an experiment card.
+// Prefers post-click for form/checkout experiments, mid-page for social proof,
+// above-fold (index 0) for everything else.
+function getExperimentScreenshot(
+  title: string,
+  hypothesis: string,
+  observations: AgentObservation[],
+): AgentObservation | undefined {
+  const text = (title + ' ' + hypothesis).toLowerCase()
+  const isPostClick = /form|checkout|sign.?up|register|submit|conversion/.test(text)
+  const isMidPage = /social proof|trust|testimonial|review|scroll|below.?fold/.test(text)
+
+  const byAction = (action: string) => observations.find((o) => o.action === action && o.screenshotUrl)
+  if (isPostClick) return byAction('click') ?? byAction('screenshot')
+  if (isMidPage) return byAction('scroll') ?? byAction('screenshot')
+  return byAction('screenshot')
+}
+
 export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGenerateExperiments }: UrlAnalyzerResultProps) {
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null)
   const [expandedExperimentId, setExpandedExperimentId] = useState<string | null>(null)
@@ -372,6 +390,9 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
               <ul className='experiment-list-accordion' role='list'>
                 {visibleExperiments.map((experiment) => {
                   const isExpanded = expandedExperimentId === experiment.id
+                  const expScreenshotObs = agentSession
+                    ? getExperimentScreenshot(experiment.title, experiment.hypothesis, agentSession.observations)
+                    : undefined
                   return (
                     <li key={experiment.id}>
                       <article className='experiment-card'>
@@ -405,6 +426,21 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
                             role='region'
                             aria-label={experiment.title}
                           >
+                            {expScreenshotObs?.screenshotUrl && (
+                              <figure className='experiment-card__screenshot'>
+                                <a href={expScreenshotObs.screenshotUrl} target='_blank' rel='noopener noreferrer'>
+                                  <img
+                                    src={expScreenshotObs.screenshotUrl}
+                                    alt={`Current state: ${SCREENSHOT_STEP_LABELS[expScreenshotObs.action] ?? 'Page screenshot'}`}
+                                    className='experiment-card__screenshot-img'
+                                    loading='lazy'
+                                  />
+                                </a>
+                                <figcaption className='label'>
+                                  Current state — {SCREENSHOT_STEP_LABELS[expScreenshotObs.action] ?? 'Page screenshot'}
+                                </figcaption>
+                              </figure>
+                            )}
                             <p className='experiment-card__hypothesis'>{experiment.hypothesis}</p>
                             <dl className='experiment-card__details'>
                               <div>

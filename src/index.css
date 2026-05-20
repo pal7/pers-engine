@@ -1859,6 +1859,29 @@ strong {
   grid-column: 1 / -1;
 }
 
+.experiment-card__screenshot {
+  margin: 0 0 16px;
+}
+
+.experiment-card__screenshot-img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  object-position: top;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  display: block;
+}
+
+.experiment-card__screenshot a:hover .experiment-card__screenshot-img {
+  opacity: 0.88;
+}
+
+.experiment-card__screenshot figcaption {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+
 /* ── Generate more experiments (premium teaser) ───────────────────────────── */
 
 .generate-more-teaser {

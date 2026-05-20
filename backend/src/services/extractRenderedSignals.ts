@@ -1,4 +1,4 @@
-import { chromium } from 'playwright'
+import { launchStealth } from './stealthBrowser.js'
 import {
   buildEmptySignals,
   buildHeroText,
@@ -40,10 +40,10 @@ function finalizeSignals(signals: PageSignals): PageSignals {
 
 export async function extractRenderedSignals(url: string): Promise<ExtractionResult> {
   const baseWarnings: string[] = []
-  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  let browser: Awaited<ReturnType<typeof launchStealth>> | undefined
 
   try {
-    browser = await chromium.launch({
+    browser = await launchStealth({
       headless: process.env.HEADLESS !== 'false',
       executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined,
     })

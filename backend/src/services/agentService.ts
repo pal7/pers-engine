@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { chromium } from 'playwright'
+import { launchStealth } from './stealthBrowser.js'
 import { BlobServiceClient } from '@azure/storage-blob'
 import { analyzeWithVision } from './openAiService.js'
 import type {
@@ -105,10 +105,10 @@ export async function runAgentAnalysis(
     onObservation?.(obs)
   }
 
-  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  let browser: Awaited<ReturnType<typeof launchStealth>> | undefined
 
   const agentLoop = async () => {
-    browser = await chromium.launch({
+    browser = await launchStealth({
       headless: process.env.HEADLESS !== 'false',
       executablePath: process.env.CHROME_EXECUTABLE_PATH || undefined,
     })
