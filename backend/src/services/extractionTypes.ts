@@ -14,6 +14,7 @@ export interface PageSignals extends AnalysisExtractedSignals {
   finalUrl: string;
   textSample: string;
   contentLength: number;
+  primaryCtaAboveFold?: boolean;
 }
 
 export interface ExtractionResult {

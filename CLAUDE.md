@@ -108,6 +108,7 @@ infra/AZURE_SETUP.md
 - ⬜ Replace template heuristics with real GPT-5.2 call (read secrets from Key Vault via managed identity)
 - ⬜ Wire detected tech stack into GPT-5.2 prompt (implementationHint per experiment)
 - ⬜ Cosmos DB caching (cache analysis results by URL)
+- ⬜ Feed vision captions into main analysis prompt — currently GPT-5.2 vision runs on each screenshot but captions are only shown in the UI, not passed to `buildUserPrompt`; wiring them in would let the issues/experiments reference actual visual observations (e.g. "CTA is visually buried below the hero image")
 
 #### Still to do — UI / visual analysis
 - ⬜ Annotated screenshot overlay — draw bounding boxes / arrows on the above-fold screenshot to show suggested CTA repositioning (needs canvas or SVG layer over the `<img>`; coordinates come from vision analysis or a new structured GPT response)

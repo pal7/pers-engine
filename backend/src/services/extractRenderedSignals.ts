@@ -133,55 +133,63 @@ export async function extractRenderedSignals(url: string): Promise<ExtractionRes
     })
 
     try {
-      const partialSignals = await page.evaluate(() => {
-        const normalize = (value: string) => value.replace(/\s+/g, ' ').trim()
-        const isVisible = (element: Element | null) => {
-          if (!element || !(element instanceof HTMLElement)) {
-            return false
-          }
+      // Passed as a string so esbuild does not transform it — avoids the
+      // "__name is not defined" error that occurs when esbuild injects its
+      // module-level helper into a function that Playwright serialises and
+      // re-evaluates in the browser context.
+      const partialSignals = await page.evaluate<{
+        hasForm: boolean
+        buttonCount: number
+        ctaTexts: string[]
+        primaryCtaAboveFold: boolean
+      }>(`(function () {
+        var CTA_SELECTOR = [
+          'button',
+          'a[href]',
+          '[role="button"]',
+          'input[type="submit"]',
+          'input[type="button"]',
+          '[class*="btn"]',
+          '[class*="cta"]',
+          '[class*="button"]',
+          '[ng-click]',
+          '[onclick]'
+        ].join(', ');
 
-          const style = window.getComputedStyle(element)
-          const rect = element.getBoundingClientRect()
+        function normalize(v) { return v.replace(/\\s+/g, ' ').trim(); }
 
-          return (
-            style.display !== 'none' &&
-            style.visibility !== 'hidden' &&
-            style.opacity !== '0' &&
-            rect.width > 0 &&
-            rect.height > 0
-          )
+        function isVisible(el) {
+          if (!el) return false;
+          var s = window.getComputedStyle(el);
+          var r = el.getBoundingClientRect();
+          return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0' && r.width > 0 && r.height > 0;
         }
 
-        const getText = (element: Element | null) =>
-          normalize(
-            element instanceof HTMLInputElement ? element.value : element?.textContent ?? '',
-          )
+        function getText(el) {
+          return normalize(el instanceof HTMLInputElement ? (el.value || '') : (el.textContent || ''));
+        }
 
-        const buttons = Array.from(
-          document.querySelectorAll(
-            'button, input[type="button"], input[type="submit"], [role="button"]',
-          ),
-        ).filter((element) => isVisible(element))
+        function isAboveFold(el) {
+          var r = el.getBoundingClientRect();
+          return r.top < window.innerHeight && r.width > 0 && r.height > 0;
+        }
 
-        const links = Array.from(document.querySelectorAll('a')).filter((element) =>
-          isVisible(element),
-        )
+        var ctaElements = Array.from(document.querySelectorAll(CTA_SELECTOR)).filter(isVisible);
 
         return {
-          hasForm: Array.from(document.forms).some((form) => isVisible(form)),
-          buttonCount: buttons.length,
-          ctaTexts: [
-            ...buttons.map((element) => getText(element)),
-            ...links.map((element) => getText(element)),
-          ],
-        }
-      })
+          hasForm: Array.from(document.forms).some(isVisible),
+          buttonCount: ctaElements.length,
+          ctaTexts: ctaElements.map(getText),
+          primaryCtaAboveFold: ctaElements.some(isAboveFold)
+        };
+      })()`)
 
       signals.hasForm = partialSignals.hasForm
       signals.buttonCount = partialSignals.buttonCount
       signals.ctaTexts = dedupeTexts(
         partialSignals.ctaTexts.filter((text) => isActionLikeText(text)),
       )
+      signals.primaryCtaAboveFold = partialSignals.primaryCtaAboveFold
     } catch (error) {
       baseWarnings.push(getEvaluationWarning(error, 'CTA and form extraction'))
     }

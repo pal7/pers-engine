@@ -238,7 +238,7 @@ async function processUrl(
       issues:      JSON.stringify(issues),
       experiments: '',
       techStack:   JSON.stringify(techStack),
-      pageType:    evidence.pageType,
+      pageType:    category,
       heroText:    evidence.heroText,
       ctaTexts:    JSON.stringify(adaptedSignals.candidateCtaTexts),
       embedding,

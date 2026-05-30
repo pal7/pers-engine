@@ -138,7 +138,7 @@ describe('retrieveSimilarAnalyses', () => {
       await retrieveSimilarAnalyses('hero text', 'ecommerce')
       expect(mockSearch).toHaveBeenCalledWith(
         '*',
-        expect.objectContaining({ filter: "pageType eq 'ecommerce'" }),
+        expect.objectContaining({ filter: "category eq 'ecommerce' or pageType eq 'ecommerce'" }),
       )
     })
 
@@ -147,7 +147,7 @@ describe('retrieveSimilarAnalyses', () => {
       await retrieveSimilarAnalyses('hero text', 'saas')
       expect(mockSearch).toHaveBeenCalledWith(
         '*',
-        expect.objectContaining({ filter: "pageType eq 'saas'" }),
+        expect.objectContaining({ filter: "category eq 'saas' or pageType eq 'saas'" }),
       )
     })
 

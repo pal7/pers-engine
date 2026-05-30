@@ -116,6 +116,7 @@ export function buildEmptySignals(url: string): PageSignals {
     ctaTexts: [],
     textSample: '',
     contentLength: 0,
+    primaryCtaAboveFold: false,
   }
 }
 
