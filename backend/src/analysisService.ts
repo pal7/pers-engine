@@ -153,8 +153,9 @@ export async function analyzeWebsite(
     candidateCtaTexts: bestExtraction.signals.ctaTexts,
     pageText: bestExtraction.signals.textSample,
     primaryCtaHeuristic:
-      bestExtraction.signals.ctaTexts.length > 0 &&
-      Boolean(bestExtraction.signals.heroText || bestExtraction.signals.h1),
+      bestExtraction.signals.primaryCtaAboveFold ??
+      (bestExtraction.signals.ctaTexts.length > 0 &&
+        Boolean(bestExtraction.signals.heroText || bestExtraction.signals.h1)),
     trustSignalKeywords: trustKeywords.filter((keyword) => combinedText.includes(keyword)),
   }
 
@@ -172,7 +173,8 @@ export async function analyzeWebsite(
     const similarAnalyses = await retrieveSimilarAnalyses(queryText, evidence.pageType)
 
     if (similarAnalyses.length > 0) {
-      console.log(`[analyze] RAG: ${similarAnalyses.length} similar analyses retrieved`)
+      console.log(`[analyze] RAG: ${similarAnalyses.length} similar analyses retrieved for pageType="${evidence.pageType}"`)
+      console.log('[analyze] RAG sites:', similarAnalyses.map((s) => s.url).join(', '))
       emit({
         id: 'rag',
         label: `${similarAnalyses.length} similar ${evidence.pageType} ${similarAnalyses.length === 1 ? 'analysis' : 'analyses'} found`,
@@ -180,6 +182,7 @@ export async function analyzeWebsite(
         detail: similarAnalyses.map((s) => new URL(s.url).hostname).join(', '),
       })
     } else {
+      console.warn(`[analyze] RAG: no results for pageType="${evidence.pageType}" query="${queryText.slice(0, 60)}"`)
       emit({ id: 'rag', label: 'No close matches in index', status: 'warn' })
     }
 

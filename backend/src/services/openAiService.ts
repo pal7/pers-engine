@@ -225,6 +225,14 @@ export async function analyzeWithAI(
     timeout: 30_000,
   })
 
+  const userPrompt = buildUserPrompt(signals, evidence, techStack, similarAnalyses)
+  const hasSimilar = userPrompt.includes('SIMILAR SITE ANALYSES')
+  console.log(`[openai] prompt built — ${userPrompt.length} chars, RAG section: ${hasSimilar}`)
+  if (hasSimilar) {
+    const idx = userPrompt.indexOf('SIMILAR SITE ANALYSES')
+    console.log('[openai] RAG inject preview:', userPrompt.slice(idx, idx + 200).replace(/\n/g, ' '))
+  }
+
   let rawJson: string
 
   try {
@@ -250,7 +258,7 @@ export async function analyzeWithAI(
         },
         {
           role: 'user',
-          content: buildUserPrompt(signals, evidence, techStack, similarAnalyses),
+          content: userPrompt,
         },
       ],
     })

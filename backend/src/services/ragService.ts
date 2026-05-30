@@ -43,6 +43,13 @@ export async function retrieveSimilarAnalyses(
       new AzureKeyCredential(searchKey),
     )
 
+    // Match on either field — seed pipeline stores the original category label;
+    // pageType is re-derived from heuristics and may differ (e.g. 'general').
+    const filter =
+      pageType !== 'general'
+        ? `category eq '${pageType}' or pageType eq '${pageType}'`
+        : undefined
+
     const results = await searchClient.search('*', {
       vectorSearchOptions: {
         queries: [{
@@ -52,7 +59,7 @@ export async function retrieveSimilarAnalyses(
           fields: ['embedding'],
         }],
       },
-      ...(pageType !== 'general' ? { filter: `pageType eq '${pageType}'` } : {}),
+      ...(filter ? { filter } : {}),
       select: ['url', 'category', 'summary', 'issues'],
       top: topK,
     })
@@ -79,7 +86,8 @@ export async function retrieveSimilarAnalyses(
       })
     }
     return analyses
-  } catch {
+  } catch (err) {
+    console.warn('[rag] retrieveSimilarAnalyses failed:', err instanceof Error ? err.message : String(err))
     return []
   }
 }
