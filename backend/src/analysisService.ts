@@ -197,8 +197,9 @@ export async function analyzeWebsite(
     candidateCtaTexts: bestExtraction.signals.ctaTexts,
     pageText: bestExtraction.signals.textSample,
     primaryCtaHeuristic:
-      bestExtraction.signals.ctaTexts.length > 0 &&
-      Boolean(bestExtraction.signals.heroText || bestExtraction.signals.h1),
+      bestExtraction.signals.primaryCtaAboveFold ??
+      (bestExtraction.signals.ctaTexts.length > 0 &&
+        Boolean(bestExtraction.signals.heroText || bestExtraction.signals.h1)),
     trustSignalKeywords: trustKeywords.filter((keyword) => combinedText.includes(keyword)),
   }
 
