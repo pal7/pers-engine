@@ -99,9 +99,9 @@ backend/src/
 shared/analysis.ts                    # Shared TS types (FE + BE)
 scripts/
   createSearchIndex.ts                # One-time: create Azure AI Search index (with taxonomy fields)
-  seedPipeline.ts                     # Seed 240 URLs into the index with business DNA embeddings
-  seedUrls.ts                         # The 240 seed URLs (6 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b)
-  package.json                        # Scripts: create-index, seed
+  seedPipeline.ts                     # Seed pipeline with --categories filter for incremental re-seeding
+  seedUrls.ts                         # 440 seed URLs (11 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b, education, realestate, food, automotive, media)
+  package.json                        # Scripts: create-index, seed, seed-new
 Dockerfile.backend
 .github/workflows/azure-deploy.yml
 infra/AZURE_SETUP.md
@@ -116,7 +116,7 @@ infra/AZURE_SETUP.md
 
 ### Features
 - ✅ URL analysis — GPT-5.2 generates 4 issues + summary grounded in page signals
-- ✅ BAG pipeline — 240 seeded analyses in Azure AI Search (6 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b); sites classified by business DNA, top-3 comparable businesses retrieved by descriptor embedding similarity, injected into GPT prompt; shown in "Comparable businesses" accordion in the UI
+- ✅ BAG pipeline — 439 seeded analyses in Azure AI Search (11 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b, education, realestate, food, automotive, media); sites classified by business DNA, top-3 comparable businesses retrieved by descriptor embedding similarity (self-reference excluded), injected into GPT prompt; shown in "Comparable businesses" accordion in the UI
 - ✅ Tech stack detection (58+ tools, 14 categories incl. consent, monitoring, font, chat); wired into GPT prompt
 - ✅ Experiment generation — `/api/experiments` uses AI tool-calling with platform-specific tools (Adobe Target, Optimizely, VWO, generic); falls back to templates if no AI key
 - ✅ Streaming analysis — `/api/analyze/stream` emits SSE progress events (fetch, browser-fallback, classify, rag, gpt, agent steps)
@@ -132,7 +132,7 @@ infra/AZURE_SETUP.md
 - ✅ Azure Container Apps (backend, v4.1)
 - ✅ Container Registry — persengineacr.azurecr.io
 - ✅ Azure AI Foundry — pers-engine-foundry (Canada Central)
-- ✅ Azure AI Search — pers-engine-search2 (`analyses` index, 1536-dim HNSW, 240 documents)
+- ✅ Azure AI Search — pers-engine-search2 (`analyses` index, 1536-dim HNSW, 439 documents across 11 categories)
 - ✅ Embedding deployment — text-embedding-ada-002 (East US 2)
 - ✅ Storage Account — persenginestore2 (agent-screenshots container)
 - ✅ Key Vault — pers-engine-kv
@@ -143,7 +143,7 @@ infra/AZURE_SETUP.md
 #### Still to do — core
 - ⬜ Cosmos DB caching — cache `AnalysisResponse` by URL; invalidate only when the page content has changed (check `Last-Modified` / `ETag` headers or compare a content hash before serving from cache)
 - ⬜ Feed vision captions into main analysis prompt — agent vision runs on each screenshot but captions only show in UI, not in `buildUserPrompt`; wiring them in would let issues/experiments reference visual observations
-- ✅ Expanded seed corpus with B2B enterprise/scientific sites — 40 b2b sites added: scientific instruments (Thermo Fisher, Waters, Bruker, Illumina, Keysight, etc.), enterprise software (SAP, Oracle, Workday, ServiceNow, Palantir, etc.), industrial B2B hardware (Grainger, Honeywell, Siemens, etc.), professional services (Deloitte, McKinsey, Gartner, etc.)
+- ✅ Expanded seed corpus — 439 documents across 11 categories (ecommerce, saas, travel, finance, healthcare, b2b, education, realestate, food, automotive, media); business DNA classification via `classifyService.ts`; self-reference excluded from RAG results; `--categories` filter in seed pipeline for incremental re-seeding (`npm run seed-new`)
 
 #### Still to do — UI / visual analysis
 - ⬜ Annotated screenshot overlay — draw bounding boxes / arrows on the above-fold screenshot (canvas or SVG layer; coordinates from vision or structured GPT response)
@@ -161,12 +161,12 @@ infra/AZURE_SETUP.md
 
 ## BAG pipeline (Benchmark-Augmented Generation)
 
-The `analyses` index in Azure AI Search contains 240 pre-seeded websites. Each document is embedded on its **business DNA descriptor** (not hero text), making vector similarity meaningful at the business model level rather than text level.
+The `analyses` index in Azure AI Search contains 439 pre-seeded websites across 11 categories. Each document is embedded on its **business DNA descriptor** (not hero text), making vector similarity meaningful at the business model level rather than text level.
 
 **At analysis time (pipeline order):**
 1. `extractHtmlSignals` — fast HTML extraction
 2. `classifyService.ts` + `extractRenderedSignals` run **in parallel** — classify uses HTML signals immediately while browser fallback runs concurrently (~3-5s classify is free on JS-heavy sites)
-3. `ragService.ts` — embed the descriptor, vector search for top-3 comparable businesses (pure vector similarity, no OData filter)
+3. `ragService.ts` — embed the descriptor, vector search for top-3 comparable businesses (pure vector similarity, no OData filter); analyzed URL excluded from results by hostname match
 4. Comparable businesses injected into GPT prompt as `COMPARABLE BUSINESSES` — GPT identifies shared friction patterns and divergences
 5. Results returned in `AnalysisResponse.comparableSites[]` and shown in "Comparable businesses" accordion in the UI
 
@@ -184,7 +184,9 @@ Descriptor format: `"B2B | Lab instruments | Laboratories, scientists | Direct s
 **At seed time (`scripts/seedPipeline.ts`):**
 - Extract → classify (GPT) + analyze CRO issues (GPT) in parallel → embed descriptor → upload to AI Search with all 7 taxonomy fields
 
-To re-seed: `cd scripts && npm install && npm run create-index && npm run seed` (requires `scripts/.env` matching `backend/.env`).
+To re-seed all: `cd scripts && npm install && npm run create-index && npm run seed` (requires `scripts/.env` matching `backend/.env`).
+To seed new categories only: `npm run seed-new` (runs `--categories=education,realestate,food,automotive,media`).
+To seed a custom subset: `tsx --env-file .env seedPipeline.ts --categories=food,media`.
 
 **Azure AI Search `filterMode` note**: vector-only queries require `filterMode: 'preFilter'` explicitly set in `vectorSearchOptions` — without it the v12 SDK silently ignores OData filters. This is set in `ragService.ts` but is not needed when no filter is applied (pure vector search).
 
@@ -213,4 +215,4 @@ github.com/pal7/pers-engine
 ## Active branch
 
 - `main` — stable, deployed to Azure
-- `v3/bugfix` — current branch
+- `feature/v4/agents` — current branch
