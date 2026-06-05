@@ -5,7 +5,7 @@ import type {
   DetectedTech,
 } from '../../../shared/analysis.ts'
 import type { ExtractedPageSignals } from './extractPageSignals.ts'
-import type { SimilarAnalysis } from './ragService.ts'
+import type { ComparableSite } from '../../../shared/analysis.ts'
 
 const PAGE_TEXT_LIMIT = 1500
 
@@ -44,16 +44,16 @@ function buildUserPrompt(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
-  similarAnalyses: SimilarAnalysis[] = [],
+  comparableSites: ComparableSite[] = [],
 ): string {
-  return buildUserPromptPreview(signals, evidence, techStack, similarAnalyses)
+  return buildUserPromptPreview(signals, evidence, techStack, comparableSites)
 }
 
 export function buildUserPromptPreview(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
-  similarAnalyses: SimilarAnalysis[] = [],
+  comparableSites: ComparableSite[] = [],
 ): string {
   const metaLines: string[] = [`URL: ${signals.resolvedUrl}`]
   if (signals.pageTitle) metaLines.push(`Title: ${signals.pageTitle}`)
@@ -86,13 +86,16 @@ export function buildUserPromptPreview(
 
   const pageTextSample = signals.pageText.slice(0, PAGE_TEXT_LIMIT)
 
-  const similarSection =
-    similarAnalyses.length > 0
-      ? '\n\nSIMILAR SITE ANALYSES\nThe following analyses from similar pages may inform your assessment:\n' +
-        similarAnalyses
+  const comparableSection =
+    comparableSites.length > 0
+      ? '\n\nCOMPARABLE BUSINESSES\nThe following sites share a similar business model and audience. Use them as a reference point — identify where the analyzed site has the same friction patterns and where it diverges:\n' +
+        comparableSites
           .map(
-            (s, i) =>
-              `${i + 1}. ${s.url} (${s.category})\n   Summary: ${s.summary}\n   Issues: ${s.issues.join(', ')}`,
+            (s, i) => {
+              const profile = [s.businessType, s.productCategory, s.audience, s.industryVertical]
+                .filter(Boolean).join(' | ')
+              return `${i + 1}. ${s.url}${profile ? ` — ${profile}` : ''}\n   ${s.summary}`
+            },
           )
           .join('\n')
       : ''
@@ -111,7 +114,7 @@ PAGE ARCHITECTURE
 ${archLines.join('\n')}
 
 PAGE CONTENT SAMPLE
-${pageTextSample}${similarSection}
+${pageTextSample}${comparableSection}
 
 INSTRUCTIONS
 ANALYSIS PRIORITIES — evaluate in this order:
@@ -199,7 +202,7 @@ export async function analyzeWithAI(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
-  similarAnalyses: SimilarAnalysis[] = [],
+  comparableSites: ComparableSite[] = [],
 ): Promise<{ summary: string; issues: AnalysisIssue[] }> {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_KEY
@@ -224,6 +227,14 @@ export async function analyzeWithAI(
     apiVersion: '2025-01-01-preview',
     timeout: 30_000,
   })
+
+  const userPrompt = buildUserPrompt(signals, evidence, techStack, comparableSites)
+  const hasComparables = userPrompt.includes('COMPARABLE BUSINESSES')
+  console.log(`[openai] prompt built — ${userPrompt.length} chars, comparable section: ${hasComparables}`)
+  if (hasComparables) {
+    const idx = userPrompt.indexOf('COMPARABLE BUSINESSES')
+    console.log('[openai] comparable inject preview:', userPrompt.slice(idx, idx + 200).replace(/\n/g, ' '))
+  }
 
   let rawJson: string
 
@@ -250,7 +261,7 @@ export async function analyzeWithAI(
         },
         {
           role: 'user',
-          content: buildUserPrompt(signals, evidence, techStack, similarAnalyses),
+          content: userPrompt,
         },
       ],
     })

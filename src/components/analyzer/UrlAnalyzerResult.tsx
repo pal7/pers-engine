@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import type { AgentObservation, AnalysisExperiment, AnalysisExtractionQuality, AnalysisResponse, DetectedTech, TechStackCategory } from "../../types/analysis";
+import type { AgentObservation, AnalysisExperiment, AnalysisExtractionQuality, AnalysisResponse, ComparableSite, DetectedTech, TechStackCategory } from "../../types/analysis";
 
 type ExperimentStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -87,6 +87,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
   const [expandedExperimentId, setExpandedExperimentId] = useState<string | null>(null)
   const [showMoreToast, setShowMoreToast] = useState(false)
   const [signalsExpanded, setSignalsExpanded] = useState(false)
+  const [ragExpanded, setRagExpanded] = useState(false)
   const debugData = result.debug;
   const agentSession = result.agentSession;
   const visibleExperiments = experiments?.slice(0, 2) ?? null;
@@ -173,6 +174,57 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
             </div>
           )}
         </article>
+
+        {result.comparableSites && result.comparableSites.length > 0 && (
+          <article className='signals-accordion'>
+            <button
+              className='signals-accordion__header'
+              onClick={() => setRagExpanded((v) => !v)}
+              aria-expanded={ragExpanded}
+              aria-controls='comparable-sites-body'
+              type='button'
+            >
+              <h3 className='signals-accordion__title'>Comparable businesses</h3>
+              <span className='label signals-accordion__sub'>
+                {result.comparableSites.length} similar {result.comparableSites.length === 1 ? 'business' : 'businesses'} used to contextualise this analysis
+                {result.siteClassification && ` · ${result.siteClassification.descriptor}`}
+              </span>
+              <ChevronDown
+                className={`issue-card__chevron${ragExpanded ? ' issue-card__chevron--open' : ''}`}
+                size={16}
+                aria-hidden='true'
+              />
+            </button>
+            {ragExpanded && (
+              <div id='comparable-sites-body' className='signals-accordion__body'>
+                <ul className='rag-sources-list'>
+                  {result.comparableSites.map((site: ComparableSite) => (
+                    <li key={site.url} className='rag-source-item'>
+                      <div className='rag-source-item__header'>
+                        <a
+                          href={site.url}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='rag-source-item__url'
+                        >
+                          {new URL(site.url).hostname.replace(/^www\./, '')}
+                        </a>
+                        {site.businessType && <span className='badge'>{site.businessType}</span>}
+                        {site.industryVertical && <span className='badge badge--neutral'>{site.industryVertical}</span>}
+                      </div>
+                      {(site.productCategory || site.audience) && (
+                        <p className='rag-source-item__dna'>
+                          {[site.productCategory, site.audience].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                      <p className='rag-source-item__summary'>{site.summary}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </article>
+        )}
 
         <section
           className='url-analyzer-result__section'

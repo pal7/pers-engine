@@ -1,6 +1,6 @@
 # pers-engine
 
-AI-powered UX analysis tool. User submits URL → backend scrapes → Azure OpenAI returns UX issues + A/B test hypotheses → cached in Cosmos DB.
+AI-powered UX analysis tool. User submits URL → backend scrapes → Azure OpenAI returns UX issues + A/B test hypotheses.
 
 ## Stack
 
@@ -8,10 +8,10 @@ AI-powered UX analysis tool. User submits URL → backend scrapes → Azure Open
 | ------------ | ------------------------------------------------ |
 | Frontend     | React 18, TypeScript, Vite (port 5173)           |
 | Backend      | Node/Express, TypeScript (port 3001)             |
-| Scraping     | Playwright (JS-heavy sites fallback)             |
+| Scraping     | Playwright 1.59.1 (JS-heavy sites fallback)      |
 | Shared types | `shared/analysis.ts`                             |
-| AI           | Azure OpenAI GPT-4o                              |
-| DB           | Azure Cosmos DB (result caching)                 |
+| AI           | Azure OpenAI GPT-5.2                             |
+| BAG          | Azure AI Search (vector) + text-embedding-ada-002 |
 | Hosting      | Azure Static Web Apps (FE) + Container Apps (BE) |
 
 ## Local dev
@@ -31,18 +31,18 @@ Requires `backend/.env`:
 HEADLESS=false
 CHROME_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 
-# Azure OpenAI
+# Azure OpenAI (GPT-5.2)
 AZURE_OPENAI_ENDPOINT=https://canadacentral.api.cognitive.microsoft.com/
 AZURE_OPENAI_KEY=
 AZURE_OPENAI_DEPLOYMENT=gpt-5.2
 
-# Azure AI Search (RAG)
-AZURE_SEARCH_ENDPOINT=https://pers-engine-search.search.windows.net
+# Azure AI Search (BAG)
+AZURE_SEARCH_ENDPOINT=https://pers-engine-search2.search.windows.net
 AZURE_SEARCH_KEY=
 
-# Azure Embeddings
+# Azure Embeddings (text-embedding-ada-002, East US 2)
 AZURE_EMBEDDING_DEPLOYMENT=text-embedding-ada-002
-AZURE_EMBEDDING_ENDPOINT=https://ashwi-moev3iec-canadaeast.cognitiveservices.azure.com/
+AZURE_EMBEDDING_ENDPOINT=https://ashwi-mowg48v7-eastus2.cognitiveservices.azure.com/
 AZURE_EMBEDDING_KEY=
 
 # Azure Blob Storage (agent screenshots)
@@ -51,28 +51,58 @@ AZURE_STORAGE_CONNECTION_STRING=
 
 `HEADLESS` and `CHROME_EXECUTABLE_PATH` are local-only — not needed in prod (Docker runs headless with playwright-managed browser). All other vars must also be set as Container App secrets in prod.
 
+## Playwright — DO NOT reinstall unless required
+
+**Version: 1.59.1** (`playwright` + `playwright-extra` + `puppeteer-extra-plugin-stealth`)
+
+- Browsers are already installed at `~/Library/Caches/ms-playwright/` (chromium-1223, chromium_headless_shell-1223)
+- `stealthBrowser.ts` wraps `playwright-extra` + `StealthPlugin` — this is intentional to avoid bot detection
+- Local dev: uses system Chrome via `CHROME_EXECUTABLE_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+- Docker/prod: headless mode, uses playwright-managed Chromium (no `executablePath`)
+- **Do NOT run `npx playwright install` or `npx playwright install chromium`** — browsers are already present; running install downloads a new revision unnecessarily and can cause version conflicts
+- Only reinstall if: (a) upgrading `playwright` package version in `package.json`, or (b) the cached browser revision is explicitly deleted
+
 ## API
 
-- `GET  /api/health` → `{ status: "ok" }`
-- `POST /api/analyze` → `{ url, issues[], experiments[] }`
-
-`issues[]`: `{ severity: high|med|low, description, recommendation }`
-`experiments[]`: `{ hypothesis, expectedImpact, priority }`
+- `GET  /api/health` → `{ status: "ok", version: "v4.1" }`
+- `POST /api/analyze` → full `AnalysisResponse` (blocking)
+- `POST /api/analyze/stream` → SSE stream of `AnalysisProgressEvent` then final `AnalysisResponse`
+- `POST /api/experiments` → `{ experiments[] }` — AI tool-calling generates platform-specific experiments
+- `POST /api/agent-analyze` → `AgentSession` (blocking)
+- `GET  /api/agent-analyze/stream` → SSE stream of `AgentObservation` events then final `AgentSession`
 
 ## Key files
 
 ```
-src/                          # React frontend
+src/                                  # React frontend
+  components/analyzer/
+    UrlAnalyzerForm.tsx               # URL input + submit
+    AnalysisActivityLog.tsx           # SSE progress stream UI
+    UrlAnalyzerResult.tsx             # Issues, experiments, tech stack, comparable businesses
+  pages/UrlAnalyzerPage.tsx           # Main page
 backend/src/
-  server.ts                   # Express + routes
+  server.ts                           # Express routes
+  analysisService.ts                  # Orchestrator — extraction → classify+browser(parallel) → RAG → GPT
   services/
-    analysisService.ts        # Core logic
-    analysisExperimentTemplates.ts
-    analysisIssueTemplates.ts
-    analysisMockData.ts       # Dev mock (no Azure needed locally)
-shared/analysis.ts            # Shared TS types (FE + BE)
+    classifyService.ts                # GPT business DNA classifier → SiteClassification + descriptor
+    ragService.ts                     # Azure AI Search vector retrieval (descriptor embeddings)
+    openAiService.ts                  # GPT-5.2 analysis + vision + prompt builder
+    experimentService.ts              # AI tool-calling for platform-specific experiments
+    agentService.ts                   # Playwright agent (7-step session)
+    stealthBrowser.ts                 # playwright-extra + StealthPlugin launcher
+    extractHtmlSignals.ts             # Fast HTML extraction
+    extractRenderedSignals.ts         # Browser (Playwright) extraction fallback
+    techStackDetector.ts              # 58+ tools across 14 categories
+    buildEvidence.ts                  # Normalises signals → AnalysisEvidence
+    analysisIssueTemplates.ts         # Template fallback (no AI key)
+    analysisExperimentTemplates.ts    # Template fallback (no AI key)
+shared/analysis.ts                    # Shared TS types (FE + BE)
+scripts/
+  createSearchIndex.ts                # One-time: create Azure AI Search index (with taxonomy fields)
+  seedPipeline.ts                     # Seed 240 URLs into the index with business DNA embeddings
+  seedUrls.ts                         # The 240 seed URLs (6 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b)
+  package.json                        # Scripts: create-index, seed
 Dockerfile.backend
-Dockerfile.scraper
 .github/workflows/azure-deploy.yml
 infra/AZURE_SETUP.md
 ```
@@ -85,36 +115,40 @@ infra/AZURE_SETUP.md
 - ✅ GitHub Actions CI/CD (push to main → build → deploy SWA + Container Apps)
 
 ### Features
-- ✅ URL analysis with UX issues + experiment suggestions
-- ✅ Tech stack detection (58+ tools, 14 categories incl. consent, monitoring, font, chat)
-- ✅ Shared TypeScript types (shared/analysis.ts)
+- ✅ URL analysis — GPT-5.2 generates 4 issues + summary grounded in page signals
+- ✅ BAG pipeline — 240 seeded analyses in Azure AI Search (6 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b); sites classified by business DNA, top-3 comparable businesses retrieved by descriptor embedding similarity, injected into GPT prompt; shown in "Comparable businesses" accordion in the UI
+- ✅ Tech stack detection (58+ tools, 14 categories incl. consent, monitoring, font, chat); wired into GPT prompt
+- ✅ Experiment generation — `/api/experiments` uses AI tool-calling with platform-specific tools (Adobe Target, Optimizely, VWO, generic); falls back to templates if no AI key
+- ✅ Streaming analysis — `/api/analyze/stream` emits SSE progress events (fetch, browser-fallback, classify, rag, gpt, agent steps)
 - ✅ Agentic Playwright analysis — live browser session with 7 steps (navigate, runtime signals, above-fold screenshot, tech from network, scroll + mid-page screenshot, CTA click + post-click screenshot, synthesise)
 - ✅ Screenshot blob storage — agent screenshots uploaded to Azure Blob Storage (`agent-screenshots` container), returned as public URLs in `AgentSession.screenshots[]`
-- ✅ Screenshot gallery rendered in UI — 3 screenshots (above-fold, mid-page, after CTA click) with vision-analysis captions, each links to full-res blob
-- ✅ Experiment cards — 2 expandable accordion cards (not 4 flat cards); expand reveals hypothesis, variant change, metric, implementation hint
-- ✅ "Generate more experiments" premium teaser — locked UI element below the 2 cards, not yet functional
+- ✅ Screenshot gallery rendered in UI — 3 screenshots with vision-analysis captions, each links to full-res blob
+- ✅ Experiment cards — 2 expandable accordion cards; expand reveals hypothesis, variant change, metric, implementation hint, and relevant screenshot
+- ✅ "Generate more experiments" premium teaser — locked UI element, not yet functional
+- ✅ Page signals accordion — expandable table of raw signals used in analysis
 
 ### Azure infrastructure
 - ✅ Azure Static Web Apps (frontend + CDN)
-- ✅ Azure Container Apps (backend)
+- ✅ Azure Container Apps (backend, v4.1)
 - ✅ Container Registry — persengineacr.azurecr.io
 - ✅ Azure AI Foundry — pers-engine-foundry (Canada Central)
-- ✅ Cosmos DB — pers-engine-db (serverless, analyses container)
+- ✅ Azure AI Search — pers-engine-search2 (`analyses` index, 1536-dim HNSW, 240 documents)
+- ✅ Embedding deployment — text-embedding-ada-002 (East US 2)
 - ✅ Storage Account — persenginestore2 (agent-screenshots container)
 - ✅ Key Vault — pers-engine-kv
 - ✅ Application Insights — pers-engine-insights
 
+**Note on managed identity**: VS employee subscription blocks RBAC role assignments needed for Key Vault managed identity. Secrets are read from environment variables directly (Container App secrets), not Key Vault. See `project_subscription_limitation.md` in memory.
+
 #### Still to do — core
-- ⬜ Replace template heuristics with real GPT-5.2 call (read secrets from Key Vault via managed identity)
-- ⬜ Wire detected tech stack into GPT-5.2 prompt (implementationHint per experiment)
-- ⬜ Cosmos DB caching (cache analysis results by URL)
-- ⬜ Feed vision captions into main analysis prompt — currently GPT-5.2 vision runs on each screenshot but captions are only shown in the UI, not passed to `buildUserPrompt`; wiring them in would let the issues/experiments reference actual visual observations (e.g. "CTA is visually buried below the hero image")
+- ⬜ Cosmos DB caching — cache `AnalysisResponse` by URL; invalidate only when the page content has changed (check `Last-Modified` / `ETag` headers or compare a content hash before serving from cache)
+- ⬜ Feed vision captions into main analysis prompt — agent vision runs on each screenshot but captions only show in UI, not in `buildUserPrompt`; wiring them in would let issues/experiments reference visual observations
+- ✅ Expanded seed corpus with B2B enterprise/scientific sites — 40 b2b sites added: scientific instruments (Thermo Fisher, Waters, Bruker, Illumina, Keysight, etc.), enterprise software (SAP, Oracle, Workday, ServiceNow, Palantir, etc.), industrial B2B hardware (Grainger, Honeywell, Siemens, etc.), professional services (Deloitte, McKinsey, Gartner, etc.)
 
 #### Still to do — UI / visual analysis
-- ⬜ Annotated screenshot overlay — draw bounding boxes / arrows on the above-fold screenshot to show suggested CTA repositioning (needs canvas or SVG layer over the `<img>`; coordinates come from vision analysis or a new structured GPT response)
-- ⬜ PDF / printable report export — generate a one-page summary (issues + 2 experiments + screenshots) as a downloadable PDF; consider `@react-pdf/renderer` or browser `window.print()` with a print stylesheet
-- ⬜ "Generate more experiments" — wire the premium teaser to an auth gate and the existing `/api/experiments` endpoint; returns all experiments (not sliced to 2)
-- ⬜ Experiment card screenshot context — show the relevant screenshot thumbnail (e.g. above-fold for CTA experiments) inside the expanded experiment card body so the before-state is visible alongside the variant description
+- ⬜ Annotated screenshot overlay — draw bounding boxes / arrows on the above-fold screenshot (canvas or SVG layer; coordinates from vision or structured GPT response)
+- ⬜ PDF / printable report export — one-page summary (issues + 2 experiments + screenshots) as downloadable PDF; consider `@react-pdf/renderer` or `window.print()` with print stylesheet
+- ⬜ "Generate more experiments" — wire the premium teaser to an auth gate and the `/api/experiments` endpoint
 
 ## AI model
 
@@ -122,44 +156,55 @@ infra/AZURE_SETUP.md
 |---|---|
 | Model | gpt-5.2 |
 | Deployment name | `gpt-5.2` |
-| Endpoint | `https://pers-engine-foundry.cognitiveservices.azure.com/` |
+| Endpoint | `https://canadacentral.api.cognitive.microsoft.com/` |
 | Resource | Azure AI Foundry — pers-engine-foundry (Canada Central) |
 
-## Key Vault secrets
+## BAG pipeline (Benchmark-Augmented Generation)
 
-Secrets are already created in `pers-engine-kv`. Backend reads them at startup via managed identity — no `.env` needed in prod.
+The `analyses` index in Azure AI Search contains 240 pre-seeded websites. Each document is embedded on its **business DNA descriptor** (not hero text), making vector similarity meaningful at the business model level rather than text level.
 
-| Secret name | Value |
-|---|---|
-| `azure-openai-endpoint` | `https://pers-engine-foundry.cognitiveservices.azure.com/` |
-| `azure-openai-key` | Azure OpenAI API key |
-| `azure-openai-deployment` | `gpt-5.2` |
+**At analysis time (pipeline order):**
+1. `extractHtmlSignals` — fast HTML extraction
+2. `classifyService.ts` + `extractRenderedSignals` run **in parallel** — classify uses HTML signals immediately while browser fallback runs concurrently (~3-5s classify is free on JS-heavy sites)
+3. `ragService.ts` — embed the descriptor, vector search for top-3 comparable businesses (pure vector similarity, no OData filter)
+4. Comparable businesses injected into GPT prompt as `COMPARABLE BUSINESSES` — GPT identifies shared friction patterns and divergences
+5. Results returned in `AnalysisResponse.comparableSites[]` and shown in "Comparable businesses" accordion in the UI
 
-## Managed identity
-
-- Container App `pers-engine-backend` has **system-assigned managed identity** enabled
-- **Key Vault Secrets User** role is assigned to that identity on `pers-engine-kv`
-- This means the backend can call `SecretClient` with `DefaultAzureCredential` and read secrets without any API key in the environment
-
-## Azure target architecture
-
+**`SiteClassification` fields:**
 ```
-User → Azure Static Web Apps (FE + CDN)
-     → Azure API Management (rate limit + auth)
-     → Container Apps: Express backend
-     → Container Apps: Playwright scraper
-     → Azure OpenAI / Cosmos DB / Key Vault
-GitHub Actions → ACR → auto-deploy
+businessType: B2B | B2C | B2B2C | marketplace | media | nonprofit | unknown
+productCategory: string
+audience: string
+businessModel: string
+purchaseComplexity: low | medium | high
+industryVertical: string
 ```
+Descriptor format: `"B2B | Lab instruments | Laboratories, scientists | Direct sales, quotes | high | Life sciences and diagnostics"`
 
-Secrets: Key Vault via managed identity — no .env in prod.
+**At seed time (`scripts/seedPipeline.ts`):**
+- Extract → classify (GPT) + analyze CRO issues (GPT) in parallel → embed descriptor → upload to AI Search with all 7 taxonomy fields
+
+To re-seed: `cd scripts && npm install && npm run create-index && npm run seed` (requires `scripts/.env` matching `backend/.env`).
+
+**Azure AI Search `filterMode` note**: vector-only queries require `filterMode: 'preFilter'` explicitly set in `vectorSearchOptions` — without it the v12 SDK silently ignores OData filters. This is set in `ragService.ts` but is not needed when no filter is applied (pure vector search).
+
+## Experiment generation
+
+`POST /api/experiments` uses AI tool-calling with 4 tools:
+- `create_target_experiment` — when Adobe Target is in the tech stack
+- `create_optimizely_experiment` — when Optimizely is detected
+- `create_vwo_experiment` — when VWO is detected
+- `create_generic_experiment` — always available as fallback
+
+Results are mapped to `AnalysisExperiment[]` with platform-specific `implementationHint`.
 
 ## Conventions
 
 - TypeScript strict mode
 - Shared types live in `shared/analysis.ts` — import from there, never redeclare
-- Mock data in `analysisMockData.ts` for local dev without Azure creds
+- No mock data needed — template fallback in `analysisIssueTemplates.ts` / `analysisExperimentTemplates.ts` runs when `AZURE_OPENAI_KEY` is not set
 - Backend runs independently — test with `curl localhost:3001/api/health`
+- Page types: `ecommerce | travel | saas | finance | healthcare | general`
 
 ## Repo
 
@@ -168,4 +213,4 @@ github.com/pal7/pers-engine
 ## Active branch
 
 - `main` — stable, deployed to Azure
-- `feature/v4/agents` — **current work** (agentic Playwright analysis, screenshot blob storage)
+- `v3/bugfix` — current branch

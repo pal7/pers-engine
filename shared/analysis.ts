@@ -5,7 +5,7 @@ export interface AnalysisRequest {
 export type AnalysisStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export type AnalysisProgressStepId =
-  | 'fetch' | 'browser-fallback' | 'rag' | 'gpt' | 'experiments'
+  | 'fetch' | 'browser-fallback' | 'classify' | 'rag' | 'gpt' | 'experiments'
   | 'agent-navigate' | 'agent-screenshot' | 'agent-tech'
   | 'agent-scroll' | 'agent-click' | 'agent-form' | 'agent-synthesise'
 export type AnalysisProgressStatus = 'active' | 'done' | 'warn' | 'error'
@@ -99,6 +99,15 @@ export interface AnalysisExtractedSignals {
   ctaTexts: string[]
 }
 
+export interface ComparableSite {
+  url: string
+  summary: string
+  businessType: string
+  productCategory: string
+  audience: string
+  industryVertical: string
+}
+
 export interface AnalysisResponse {
   analyzedUrl: string
   summary: string
@@ -112,6 +121,8 @@ export interface AnalysisResponse {
   techStack: DetectedTech[]
   debug?: AnalysisDebugData
   agentSession?: AgentSession
+  comparableSites?: ComparableSite[]
+  siteClassification?: { descriptor: string }
 }
 
 export type AgentAction = 'navigate' | 'screenshot' | 'scroll' | 'click' | 'extract'

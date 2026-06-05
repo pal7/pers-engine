@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Hoist mock functions so they are available inside vi.mock factories
 const { mockEmbeddingsCreate, mockSearch } = vi.hoisted(() => ({
   mockEmbeddingsCreate: vi.fn(),
   mockSearch: vi.fn(),
 }))
 
 vi.mock('openai/azure', () => ({
-  // Must use regular function (not arrow) — new + arrow function ignores the return value
   AzureOpenAI: vi.fn(function () {
     return { embeddings: { create: mockEmbeddingsCreate } }
   }),
@@ -22,7 +20,7 @@ vi.mock('@azure/search-documents', () => ({
   }),
 }))
 
-import { retrieveSimilarAnalyses } from '../ragService'
+import { retrieveComparableSites } from '../ragService'
 
 const ENV_VARS = {
   AZURE_EMBEDDING_ENDPOINT: 'https://embeddings.example.com',
@@ -44,7 +42,6 @@ function clearEnv() {
   }
 }
 
-// Builds an async iterable of search results (matches the SDK's PagedAsyncIterableIterator)
 function makeSearchResults(docs: object[]) {
   const results = docs.map((document) => ({ document, score: 0.9 }))
   return {
@@ -54,7 +51,9 @@ function makeSearchResults(docs: object[]) {
   }
 }
 
-describe('retrieveSimilarAnalyses', () => {
+const DESCRIPTOR = 'B2B | Scientific instruments | Enterprise labs | Product catalogue + RFQ | high purchase complexity | Life sciences'
+
+describe('retrieveComparableSites', () => {
   beforeEach(() => {
     mockEmbeddingsCreate.mockReset()
     mockSearch.mockReset()
@@ -66,22 +65,22 @@ describe('retrieveSimilarAnalyses', () => {
 
   describe('env var guards', () => {
     it('returns [] when all env vars are missing', async () => {
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
       expect(mockEmbeddingsCreate).not.toHaveBeenCalled()
     })
 
     it('returns [] when embedding endpoint is missing', async () => {
-      setEnv({ AZURE_EMBEDDING_ENDPOINT: undefined as unknown as string })
+      setEnv()
       delete process.env.AZURE_EMBEDDING_ENDPOINT
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
     })
 
     it('returns [] when search key is missing', async () => {
       setEnv()
       delete process.env.AZURE_SEARCH_KEY
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
     })
   })
@@ -90,23 +89,16 @@ describe('retrieveSimilarAnalyses', () => {
     it('returns [] when embedding API throws', async () => {
       setEnv()
       mockEmbeddingsCreate.mockRejectedValue(new Error('network timeout'))
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
-    })
-
-    it('returns [] when embedding response has no data', async () => {
-      setEnv()
-      mockEmbeddingsCreate.mockResolvedValue({ data: [] })
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
-      expect(result).toEqual([])
-      expect(mockSearch).not.toHaveBeenCalled()
     })
 
     it('returns [] when embedding vector is empty', async () => {
       setEnv()
       mockEmbeddingsCreate.mockResolvedValue({ data: [{ embedding: [] }] })
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
+      expect(mockSearch).not.toHaveBeenCalled()
     })
   })
 
@@ -120,51 +112,8 @@ describe('retrieveSimilarAnalyses', () => {
     it('returns [] when search API throws', async () => {
       setEnv()
       mockSearch.mockRejectedValue(new Error('search unavailable'))
-      const result = await retrieveSimilarAnalyses('hero text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
-    })
-  })
-
-  describe('pageType filter', () => {
-    beforeEach(() => {
-      mockEmbeddingsCreate.mockResolvedValue({
-        data: [{ embedding: new Array(1536).fill(0.1) }],
-      })
-      mockSearch.mockResolvedValue(makeSearchResults([]))
-    })
-
-    it('applies pageType filter for non-general types', async () => {
-      setEnv()
-      await retrieveSimilarAnalyses('hero text', 'ecommerce')
-      expect(mockSearch).toHaveBeenCalledWith(
-        '*',
-        expect.objectContaining({ filter: "pageType eq 'ecommerce'" }),
-      )
-    })
-
-    it('applies filter for saas pageType', async () => {
-      setEnv()
-      await retrieveSimilarAnalyses('hero text', 'saas')
-      expect(mockSearch).toHaveBeenCalledWith(
-        '*',
-        expect.objectContaining({ filter: "pageType eq 'saas'" }),
-      )
-    })
-
-    it('omits filter for general pageType', async () => {
-      setEnv()
-      await retrieveSimilarAnalyses('hero text', 'general')
-      const callArgs = mockSearch.mock.calls[0][1] as Record<string, unknown>
-      expect(callArgs).not.toHaveProperty('filter')
-    })
-
-    it('requests the correct topK', async () => {
-      setEnv()
-      await retrieveSimilarAnalyses('hero text', 'travel', 5)
-      expect(mockSearch).toHaveBeenCalledWith(
-        '*',
-        expect.objectContaining({ top: 5 }),
-      )
     })
   })
 
@@ -175,30 +124,31 @@ describe('retrieveSimilarAnalyses', () => {
       mockEmbeddingsCreate.mockResolvedValue({ data: [{ embedding: validEmbedding }] })
     })
 
-    it('returns parsed SimilarAnalysis objects from valid documents', async () => {
+    it('returns parsed ComparableSite objects from valid documents', async () => {
       setEnv()
       mockSearch.mockResolvedValue(
         makeSearchResults([
           {
-            url: 'https://shopify.com',
-            category: 'ecommerce',
-            summary: 'E-commerce checkout with cart abandonment issues.',
-            issues: JSON.stringify([
-              { title: 'Weak CTA above fold' },
-              { title: 'No trust badge at checkout' },
-            ]),
+            url: 'https://stripe.com',
+            summary: 'Payments platform with frictionless onboarding.',
+            businessType: 'B2B',
+            productCategory: 'Payment infrastructure',
+            audience: 'Developers and startups',
+            industryVertical: 'Fintech',
           },
         ]),
       )
 
-      const result = await retrieveSimilarAnalyses('shop now', 'ecommerce')
+      const result = await retrieveComparableSites(DESCRIPTOR)
 
       expect(result).toHaveLength(1)
       expect(result[0]).toEqual({
-        url: 'https://shopify.com',
-        category: 'ecommerce',
-        summary: 'E-commerce checkout with cart abandonment issues.',
-        issues: ['Weak CTA above fold', 'No trust badge at checkout'],
+        url: 'https://stripe.com',
+        summary: 'Payments platform with frictionless onboarding.',
+        businessType: 'B2B',
+        productCategory: 'Payment infrastructure',
+        audience: 'Developers and startups',
+        industryVertical: 'Fintech',
       })
     })
 
@@ -208,20 +158,24 @@ describe('retrieveSimilarAnalyses', () => {
         makeSearchResults([
           {
             url: 'https://site-a.com',
-            category: 'saas',
             summary: 'SaaS with trial friction.',
-            issues: JSON.stringify([{ title: 'No free trial CTA' }]),
+            businessType: 'B2B',
+            productCategory: 'Project management',
+            audience: 'SMB teams',
+            industryVertical: 'Productivity',
           },
           {
             url: 'https://site-b.com',
-            category: 'saas',
             summary: 'SaaS with pricing clarity issues.',
-            issues: JSON.stringify([{ title: 'Pricing hidden below fold' }]),
+            businessType: 'B2B',
+            productCategory: 'CRM software',
+            audience: 'Sales teams',
+            industryVertical: 'Sales tech',
           },
         ]),
       )
 
-      const result = await retrieveSimilarAnalyses('start free trial', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toHaveLength(2)
       expect(result[0].url).toBe('https://site-a.com')
       expect(result[1].url).toBe('https://site-b.com')
@@ -231,12 +185,12 @@ describe('retrieveSimilarAnalyses', () => {
       setEnv()
       mockSearch.mockResolvedValue(
         makeSearchResults([
-          { category: 'saas', summary: 'No URL here.', issues: '[]' },
-          { url: 'https://valid.com', category: 'saas', summary: 'Has URL.', issues: '[]' },
+          { summary: 'No URL here.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
+          { url: 'https://valid.com', summary: 'Has URL.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
         ]),
       )
 
-      const result = await retrieveSimilarAnalyses('text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toHaveLength(1)
       expect(result[0].url).toBe('https://valid.com')
     })
@@ -245,90 +199,126 @@ describe('retrieveSimilarAnalyses', () => {
       setEnv()
       mockSearch.mockResolvedValue(
         makeSearchResults([
-          { url: 'https://no-summary.com', category: 'saas', issues: '[]' },
+          { url: 'https://no-summary.com', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
         ]),
       )
 
-      const result = await retrieveSimilarAnalyses('text', 'saas')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toEqual([])
     })
 
-    it('handles malformed issues JSON gracefully — issues becomes []', async () => {
+    it('falls back to empty string for missing taxonomy fields', async () => {
       setEnv()
       mockSearch.mockResolvedValue(
-        makeSearchResults([
-          {
-            url: 'https://site.com',
-            category: 'ecommerce',
-            summary: 'Good summary.',
-            issues: 'NOT VALID JSON',
-          },
-        ]),
+        makeSearchResults([{ url: 'https://site.com', summary: 'Good summary.' }]),
       )
 
-      const result = await retrieveSimilarAnalyses('text', 'ecommerce')
+      const result = await retrieveComparableSites(DESCRIPTOR)
       expect(result).toHaveLength(1)
-      expect(result[0].issues).toEqual([])
+      expect(result[0].businessType).toBe('')
+      expect(result[0].productCategory).toBe('')
     })
 
-    it('filters out issue entries without a title', async () => {
-      setEnv()
-      mockSearch.mockResolvedValue(
-        makeSearchResults([
-          {
-            url: 'https://site.com',
-            category: 'ecommerce',
-            summary: 'Summary.',
-            issues: JSON.stringify([
-              { title: 'Valid issue' },
-              { noTitle: true },
-              { title: '' },
-            ]),
-          },
-        ]),
-      )
-
-      const result = await retrieveSimilarAnalyses('text', 'ecommerce')
-      expect(result[0].issues).toEqual(['Valid issue'])
-    })
-
-    it('uses pageType as category fallback when category is missing', async () => {
-      setEnv()
-      mockSearch.mockResolvedValue(
-        makeSearchResults([
-          {
-            url: 'https://site.com',
-            summary: 'No category field.',
-            issues: '[]',
-          },
-        ]),
-      )
-
-      const result = await retrieveSimilarAnalyses('text', 'finance')
-      expect(result[0].category).toBe('finance')
-    })
-
-    it('passes query text through to the embedding API', async () => {
+    it('passes the descriptor through to the embedding API', async () => {
       setEnv()
       mockSearch.mockResolvedValue(makeSearchResults([]))
 
-      await retrieveSimilarAnalyses('free shipping on all orders', 'ecommerce')
+      await retrieveComparableSites('B2B | Payments | Developers')
 
       expect(mockEmbeddingsCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ input: 'free shipping on all orders' }),
+        expect.objectContaining({ input: 'B2B | Payments | Developers' }),
       )
     })
 
-    it('uses default topK of 3 when not specified', async () => {
+    it('uses default topK of 3', async () => {
       setEnv()
       mockSearch.mockResolvedValue(makeSearchResults([]))
 
-      await retrieveSimilarAnalyses('text', 'saas')
+      await retrieveComparableSites(DESCRIPTOR)
 
       expect(mockSearch).toHaveBeenCalledWith(
         '*',
         expect.objectContaining({ top: 3 }),
       )
+    })
+
+    it('respects explicit topK', async () => {
+      setEnv()
+      mockSearch.mockResolvedValue(makeSearchResults([]))
+
+      await retrieveComparableSites(DESCRIPTOR, 5)
+
+      expect(mockSearch).toHaveBeenCalledWith(
+        '*',
+        expect.objectContaining({ top: 5 }),
+      )
+    })
+
+    it('uses preFilter filterMode', async () => {
+      setEnv()
+      mockSearch.mockResolvedValue(makeSearchResults([]))
+
+      await retrieveComparableSites(DESCRIPTOR)
+
+      expect(mockSearch).toHaveBeenCalledWith(
+        '*',
+        expect.objectContaining({
+          vectorSearchOptions: expect.objectContaining({ filterMode: 'preFilter' }),
+        }),
+      )
+    })
+
+    it('fetches topK+1 when excludeUrl is provided', async () => {
+      setEnv()
+      mockSearch.mockResolvedValue(makeSearchResults([]))
+
+      await retrieveComparableSites(DESCRIPTOR, 3, 'https://www.waters.com')
+
+      expect(mockSearch).toHaveBeenCalledWith('*', expect.objectContaining({ top: 4 }))
+    })
+
+    it('filters out the excluded URL by hostname (exact match)', async () => {
+      setEnv()
+      mockSearch.mockResolvedValue(
+        makeSearchResults([
+          { url: 'https://www.waters.com', summary: 'Self.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
+          { url: 'https://www.bruker.com', summary: 'Other.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
+        ]),
+      )
+
+      const result = await retrieveComparableSites(DESCRIPTOR, 3, 'https://www.waters.com')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].url).toBe('https://www.bruker.com')
+    })
+
+    it('filters by hostname regardless of www prefix', async () => {
+      setEnv()
+      mockSearch.mockResolvedValue(
+        makeSearchResults([
+          { url: 'https://waters.com', summary: 'Self no-www.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
+          { url: 'https://www.bruker.com', summary: 'Other.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
+        ]),
+      )
+
+      const result = await retrieveComparableSites(DESCRIPTOR, 3, 'https://www.waters.com')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].url).toBe('https://www.bruker.com')
+    })
+
+    it('does not exclude when excludeUrl is undefined', async () => {
+      setEnv()
+      mockSearch.mockResolvedValue(
+        makeSearchResults([
+          { url: 'https://www.waters.com', summary: 'Self.', businessType: 'B2B', productCategory: 'x', audience: 'y', industryVertical: 'z' },
+        ]),
+      )
+
+      const result = await retrieveComparableSites(DESCRIPTOR, 3)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].url).toBe('https://www.waters.com')
     })
   })
 })
