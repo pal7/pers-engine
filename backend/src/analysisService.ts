@@ -1,10 +1,11 @@
 import { buildEvidence } from './services/buildEvidence'
+import { classifySite, buildDescriptor, type SiteClassification } from './services/classifyService'
 import { detectTechStack } from './services/techStackDetector'
 import { extractHtmlSignals } from './services/extractHtmlSignals'
 import { extractRenderedSignals } from './services/extractRenderedSignals'
 import { generateIssues } from './services/generateIssues'
 import { analyzeWithAI, buildUserPromptPreview } from './services/openAiService'
-import { retrieveSimilarAnalyses } from './services/ragService'
+import { retrieveComparableSites } from './services/ragService'
 import { runAgentAnalysis } from './services/agentService'
 import type { ExtractedPageSignals } from './services/extractPageSignals'
 import type {
@@ -14,6 +15,7 @@ import type {
   AnalysisProgressEvent,
   AnalysisRequest,
   AnalysisResponse,
+  ComparableSite,
 } from '../../shared/analysis.ts'
 import type { ExtractionResult } from './services/extractionTypes'
 
@@ -115,12 +117,54 @@ export async function analyzeWebsite(
   emit({ id: 'fetch', label: 'Fetching page…', status: 'active' })
   const htmlResult = await extractHtmlSignals(analyzedUrl)
 
-  let browserResult: ExtractionResult | null = null
+  // Build preliminary signals from HTML for early classify — these are good enough for business DNA
+  const htmlCombinedText = [
+    htmlResult.signals.title,
+    htmlResult.signals.h1,
+    htmlResult.signals.heroText,
+    htmlResult.signals.textSample,
+    ...htmlResult.signals.ctaTexts,
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  const htmlAdaptedSignals: ExtractedPageSignals = {
+    resolvedUrl: htmlResult.signals.finalUrl || analyzedUrl,
+    pageTitle: htmlResult.signals.title,
+    metaDescription: '',
+    firstH1Text: htmlResult.signals.h1,
+    heroText: htmlResult.signals.heroText,
+    hasForm: htmlResult.signals.hasForm,
+    formCount: htmlResult.signals.hasForm ? 1 : 0,
+    buttonCount: htmlResult.signals.buttonCount,
+    anchorCount: 0,
+    candidateCtaTexts: htmlResult.signals.ctaTexts,
+    pageText: htmlResult.signals.textSample,
+    primaryCtaHeuristic:
+      htmlResult.signals.primaryCtaAboveFold ??
+      (htmlResult.signals.ctaTexts.length > 0 &&
+        Boolean(htmlResult.signals.heroText || htmlResult.signals.h1)),
+    trustSignalKeywords: trustKeywords.filter((keyword) => htmlCombinedText.includes(keyword)),
+  }
+  const htmlEvidence = buildEvidence(htmlAdaptedSignals)
+
+  // Run classify and browser fallback in parallel — classify only needs HTML signals
+  let browserFallbackPromise: Promise<ExtractionResult | null> = Promise.resolve(null)
   if (shouldAttemptBrowserFallback(htmlResult)) {
     emit({ id: 'browser-fallback', label: 'Running browser fallback…', status: 'active', detail: 'HTML extraction had limited signals' })
-    browserResult = await extractRenderedSignals(analyzedUrl)
-    emit({ id: 'browser-fallback', label: 'Browser extraction complete', status: 'done' })
+    browserFallbackPromise = extractRenderedSignals(analyzedUrl).then((r) => {
+      emit({ id: 'browser-fallback', label: 'Browser extraction complete', status: 'done' })
+      return r
+    })
   }
+
+  let classifyPromise: Promise<SiteClassification | null> = Promise.resolve(null)
+  if (process.env.AZURE_OPENAI_KEY) {
+    emit({ id: 'classify', label: 'Classifying business context…', status: 'active' })
+    classifyPromise = classifySite(htmlAdaptedSignals, htmlEvidence)
+  }
+
+  const [browserResult, classification] = await Promise.all([browserFallbackPromise, classifyPromise])
 
   const bestExtraction = pickBestExtraction(htmlResult, browserResult)
   emit({
@@ -164,32 +208,46 @@ export async function analyzeWebsite(
 
   let issues: AnalysisIssue[]
   let summary: string
+  let comparableSites: ComparableSite[] | undefined
+  let siteDescriptor: string | undefined
 
   if (process.env.AZURE_OPENAI_KEY) {
     console.log('[analyze] Using GPT-5.2 for analysis')
 
-    const queryText = adaptedSignals.heroText || adaptedSignals.pageTitle || ''
-    emit({ id: 'rag', label: 'Retrieving similar analyses…', status: 'active' })
-    const similarAnalyses = await retrieveSimilarAnalyses(queryText, evidence.pageType)
-
-    if (similarAnalyses.length > 0) {
-      console.log(`[analyze] RAG: ${similarAnalyses.length} similar analyses retrieved for pageType="${evidence.pageType}"`)
-      console.log('[analyze] RAG sites:', similarAnalyses.map((s) => s.url).join(', '))
-      emit({
-        id: 'rag',
-        label: `${similarAnalyses.length} similar ${evidence.pageType} ${similarAnalyses.length === 1 ? 'analysis' : 'analyses'} found`,
-        status: 'done',
-        detail: similarAnalyses.map((s) => new URL(s.url).hostname).join(', '),
-      })
+    // Classify result is already resolved (ran in parallel with browser fallback)
+    if (classification) {
+      siteDescriptor = buildDescriptor(classification)
+      console.log(`[analyze] Classification: ${siteDescriptor}`)
+      emit({ id: 'classify', label: 'Business context identified', status: 'done', detail: siteDescriptor })
     } else {
-      console.warn(`[analyze] RAG: no results for pageType="${evidence.pageType}" query="${queryText.slice(0, 60)}"`)
-      emit({ id: 'rag', label: 'No close matches in index', status: 'warn' })
+      console.warn('[analyze] Classification failed — falling back to hero text for RAG')
+      emit({ id: 'classify', label: 'Classification skipped', status: 'warn' })
     }
 
-    const promptPreview = buildUserPromptPreview(adaptedSignals, evidence, techStack, similarAnalyses)
+    // Step 2 — retrieve comparable sites by business DNA embedding
+    const ragQuery = siteDescriptor ?? (adaptedSignals.heroText || adaptedSignals.pageTitle || '')
+    emit({ id: 'rag', label: 'Finding comparable businesses…', status: 'active' })
+    const retrieved = await retrieveComparableSites(ragQuery, 3, analyzedUrl)
+
+    if (retrieved.length > 0) {
+      comparableSites = retrieved
+      console.log(`[analyze] RAG: ${retrieved.length} comparable sites`)
+      console.log('[analyze] RAG sites:', retrieved.map((s) => s.url).join(', '))
+      emit({
+        id: 'rag',
+        label: `${retrieved.length} comparable ${retrieved.length === 1 ? 'business' : 'businesses'} found`,
+        status: 'done',
+        detail: retrieved.map((s) => new URL(s.url).hostname).join(', '),
+      })
+    } else {
+      console.warn('[analyze] RAG: no comparable sites found')
+      emit({ id: 'rag', label: 'No comparable sites in index', status: 'warn' })
+    }
+
+    const promptPreview = buildUserPromptPreview(adaptedSignals, evidence, techStack, retrieved)
     emit({ id: 'gpt', label: 'Sending prompt to GPT-5.2…', status: 'active', prompt: promptPreview })
 
-    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack, similarAnalyses)
+    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack, retrieved)
     issues = aiResult.issues
     summary = aiResult.summary
 
@@ -257,5 +315,7 @@ export async function analyzeWebsite(
     issues,
     techStack,
     agentSession: agentSession ?? undefined,
+    comparableSites,
+    siteClassification: siteDescriptor ? { descriptor: siteDescriptor } : undefined,
   }
 }

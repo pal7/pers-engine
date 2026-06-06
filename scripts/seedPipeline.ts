@@ -5,6 +5,7 @@ import { SEED_URLS } from './seedUrls.ts'
 import { extractHtmlSignals } from '../backend/src/services/extractHtmlSignals.ts'
 import { detectTechStack } from '../backend/src/services/techStackDetector.ts'
 import { buildEvidence } from '../backend/src/services/buildEvidence.ts'
+import { classifySite, buildDescriptor } from '../backend/src/services/classifyService.ts'
 import type { AnalysisEvidence, AnalysisIssue } from '../shared/analysis.ts'
 import type { ExtractedPageSignals } from '../backend/src/services/extractPageSignals.ts'
 
@@ -59,6 +60,14 @@ interface AnalysisDocument {
   ctaTexts: string
   embedding: number[]
   scrapedAt: string
+  // business DNA taxonomy
+  businessType: string
+  productCategory: string
+  audience: string
+  businessModel: string
+  purchaseComplexity: string
+  industryVertical: string
+  descriptor: string
 }
 
 const searchClient = new SearchClient<AnalysisDocument>(
@@ -219,33 +228,49 @@ async function processUrl(
 
     const techStack = detectTechStack(extraction.rawHtml)
     const evidence = buildEvidence(adaptedSignals)
-    const { summary, issues } = await analyzeForSeed(adaptedSignals, evidence)
 
-    const embeddingText = [summary, ...issues.map((i) => i.title)].join(' ')
+    // Classify business DNA and CRO analysis in parallel
+    const [classification, { summary, issues }] = await Promise.all([
+      classifySite(adaptedSignals, evidence),
+      analyzeForSeed(adaptedSignals, evidence),
+    ])
+
+    const descriptor = classification
+      ? buildDescriptor(classification)
+      : [summary, ...issues.map((i) => i.title)].join(' ')
+
     const embeddingResponse = await embeddingClient.embeddings.create({
       model: AZURE_EMBEDDING_DEPLOYMENT,
-      input: embeddingText,
+      input: descriptor,
     })
     const embedding = embeddingResponse.data[0]?.embedding ?? []
 
     const docId = url.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
 
     await searchClient.uploadDocuments([{
-      id:          docId,
+      id:               docId,
       url,
       category,
       summary,
-      issues:      JSON.stringify(issues),
-      experiments: '',
-      techStack:   JSON.stringify(techStack),
-      pageType:    category,
-      heroText:    evidence.heroText,
-      ctaTexts:    JSON.stringify(adaptedSignals.candidateCtaTexts),
+      issues:           JSON.stringify(issues),
+      experiments:      '',
+      techStack:        JSON.stringify(techStack),
+      pageType:         category,
+      heroText:         evidence.heroText,
+      ctaTexts:         JSON.stringify(adaptedSignals.candidateCtaTexts),
       embedding,
-      scrapedAt:   new Date().toISOString(),
+      scrapedAt:        new Date().toISOString(),
+      businessType:     classification?.businessType     ?? '',
+      productCategory:  classification?.productCategory  ?? '',
+      audience:         classification?.audience         ?? '',
+      businessModel:    classification?.businessModel    ?? '',
+      purchaseComplexity: classification?.purchaseComplexity ?? '',
+      industryVertical: classification?.industryVertical ?? '',
+      descriptor,
     }])
 
-    console.log(`✓ [${index}/${total}] ${hostname} [${category}] — ${issues.length} issues`)
+    const dnaLabel = classification ? ` [${classification.businessType} · ${classification.industryVertical}]` : ''
+    console.log(`✓ [${index}/${total}] ${hostname} [${category}]${dnaLabel} — ${issues.length} issues`)
     return true
   } catch (err) {
     console.error(`✗ [${index}/${total}] ${hostname} [${category}] — ${err instanceof Error ? err.message : String(err)}`)
@@ -256,8 +281,19 @@ async function processUrl(
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const total = SEED_URLS.length
-  console.log(`Starting seed pipeline: ${total} URLs, 3 concurrent, 500ms delay between GPT calls.\n`)
+  // Optional --categories=a,b,c filter so we can re-seed only new categories
+  const categoriesArg = process.argv.find((a) => a.startsWith('--categories='))
+  const filterCategories = categoriesArg
+    ? new Set(categoriesArg.replace('--categories=', '').split(',').map((s) => s.trim()))
+    : null
+
+  const urls = filterCategories
+    ? SEED_URLS.filter(({ category }) => filterCategories.has(category))
+    : SEED_URLS
+
+  const total = urls.length
+  const filterLabel = filterCategories ? ` [categories: ${[...filterCategories].join(', ')}]` : ''
+  console.log(`Starting seed pipeline: ${total} URLs${filterLabel}, 3 concurrent, 500ms delay between GPT calls.\n`)
 
   const limit = pLimit(3)
   let succeeded = 0
@@ -280,7 +316,7 @@ async function main() {
   }
 
   await Promise.all(
-    SEED_URLS.map(({ url, category }, i) =>
+    urls.map(({ url, category }, i) =>
       limit(() => throttledProcess(url, category, i + 1)),
     ),
   )

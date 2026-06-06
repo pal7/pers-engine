@@ -1,18 +1,20 @@
 import { AzureOpenAI } from 'openai/azure'
 import { SearchClient, AzureKeyCredential } from '@azure/search-documents'
+import type { ComparableSite } from '../../../shared/analysis.ts'
 
-export interface SimilarAnalysis {
-  url: string
-  category: string
-  summary: string
-  issues: string[]
+function normalizeHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
-export async function retrieveSimilarAnalyses(
-  queryText: string,
-  pageType: string,
+export async function retrieveComparableSites(
+  descriptor: string,
   topK = 3,
-): Promise<SimilarAnalysis[]> {
+  excludeUrl?: string,
+): Promise<ComparableSite[]> {
   const embeddingEndpoint   = process.env.AZURE_EMBEDDING_ENDPOINT
   const embeddingKey        = process.env.AZURE_EMBEDDING_KEY
   const searchEndpoint      = process.env.AZURE_SEARCH_ENDPOINT
@@ -32,7 +34,7 @@ export async function retrieveSimilarAnalyses(
 
     const { data } = await embeddingClient.embeddings.create({
       model: embeddingDeployment,
-      input: queryText,
+      input: descriptor,
     })
     const embedding = data[0]?.embedding ?? []
     if (!embedding.length) return []
@@ -43,51 +45,52 @@ export async function retrieveSimilarAnalyses(
       new AzureKeyCredential(searchKey),
     )
 
-    // Match on either field — seed pipeline stores the original category label;
-    // pageType is re-derived from heuristics and may differ (e.g. 'general').
-    const filter =
-      pageType !== 'general'
-        ? `category eq '${pageType}' or pageType eq '${pageType}'`
-        : undefined
+    // Fetch one extra when excluding the analyzed URL so we can still return topK after filtering.
+    const fetchK = excludeUrl ? topK + 1 : topK
+    const excludeHost = excludeUrl ? normalizeHost(excludeUrl) : null
 
+    // Pure vector similarity on the business descriptor — no category pre-filter.
+    // The descriptor embedding encodes business DNA (B2B/B2C, product, audience,
+    // purchase complexity) so semantically similar businesses cluster naturally.
     const results = await searchClient.search('*', {
       vectorSearchOptions: {
         queries: [{
           kind: 'vector',
           vector: embedding,
-          kNearestNeighborsCount: topK,
+          kNearestNeighborsCount: fetchK,
           fields: ['embedding'],
         }],
+        filterMode: 'preFilter',
       },
-      ...(filter ? { filter } : {}),
-      select: ['url', 'category', 'summary', 'issues'],
-      top: topK,
+      select: ['url', 'summary', 'businessType', 'productCategory', 'audience', 'industryVertical'],
+      top: fetchK,
     })
 
-    const analyses: SimilarAnalysis[] = []
+    const sites: ComparableSite[] = []
     for await (const result of results.results) {
+      if (sites.length >= topK) break
       const doc = result.document as {
-        url?: string; category?: string; summary?: string; issues?: string
+        url?: string
+        summary?: string
+        businessType?: string
+        productCategory?: string
+        audience?: string
+        industryVertical?: string
       }
       if (!doc.url || !doc.summary) continue
-      let issueTitles: string[] = []
-      try {
-        if (doc.issues) {
-          issueTitles = (JSON.parse(doc.issues) as Array<{ title?: string }>)
-            .map((i) => i.title ?? '')
-            .filter(Boolean)
-        }
-      } catch { /* skip malformed */ }
-      analyses.push({
-        url: doc.url,
-        category: doc.category ?? pageType,
-        summary: doc.summary,
-        issues: issueTitles,
+      if (excludeHost && normalizeHost(doc.url) === excludeHost) continue
+      sites.push({
+        url:              doc.url,
+        summary:          doc.summary,
+        businessType:     doc.businessType     ?? '',
+        productCategory:  doc.productCategory  ?? '',
+        audience:         doc.audience         ?? '',
+        industryVertical: doc.industryVertical ?? '',
       })
     }
-    return analyses
+    return sites
   } catch (err) {
-    console.warn('[rag] retrieveSimilarAnalyses failed:', err instanceof Error ? err.message : String(err))
+    console.warn('[rag] retrieveComparableSites failed:', err instanceof Error ? err.message : String(err))
     return []
   }
 }
