@@ -13,7 +13,7 @@ const API_BASE = (() => {
   if (configured) return configured.replace(/\/api\/analyze$/, '')
   return import.meta.env.DEV
     ? 'http://localhost:3001'
-    : 'https://pers-engine-backend.agreeableflower-05a7ca4e.canadacentral.azurecontainerapps.io'
+    : 'https://pers-engine-backend.victoriouscliff-9e3e036f.canadacentral.azurecontainerapps.io'
 })()
 
 const ANALYSIS_API_URL = `${API_BASE}/api/analyze`

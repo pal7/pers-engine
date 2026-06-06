@@ -111,7 +111,7 @@ infra/AZURE_SETUP.md
 
 ### Live
 - ✅ Frontend — https://polite-moss-0b0a7a60f.2.azurestaticapps.net/
-- ✅ Backend — https://pers-engine-backend.agreeableflower-05a7ca4e.canadacentral.azurecontainerapps.io
+- ✅ Backend — https://pers-engine-backend.victoriouscliff-9e3e036f.canadacentral.azurecontainerapps.io
 - ✅ GitHub Actions CI/CD (push to main → build → deploy SWA + Container Apps)
 
 ### Features
