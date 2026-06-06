@@ -1,9 +1,6 @@
 import {
-  createCompetingActionsIssue,
   createCtaVisibilityIssue,
-  createFormFrictionIssue,
   createHeadlineClarityIssue,
-  createTrustReinforcementIssue,
 } from '../analysisIssueTemplates'
 import type { AnalysisEvidence, AnalysisIssue } from '../../../shared/analysis.ts'
 import type { ExtractedPageSignals } from './extractPageSignals'
@@ -42,40 +39,6 @@ export function generateIssues(
       confidence: 'Medium',
     }),
   )
-
-  // 3 — Trust reinforcement (always relevant; severity reflects what was found)
-  const trustFound = signals.trustSignalKeywords.length > 0
-  issues.push(
-    withContext(createTrustReinforcementIssue(), {
-      severity: trustFound ? 'low' : 'medium',
-      detail: trustFound
-        ? `Some trust signals were detected (${signals.trustSignalKeywords.join(', ')}), but they may not be positioned close enough to the decision moment — most effective when placed immediately adjacent to the primary CTA.`
-        : `No clear trust cues (reviews, guarantees, customer counts, or verification language) were detected in the fetched copy. Lack of proof near the CTA increases hesitation for first-time visitors.`,
-      confidence: trustFound ? 'Medium' : 'High',
-    }),
-  )
-
-  // 4 — CTA hierarchy / competing actions (always relevant; calibrated to button count)
-  const buttonNote =
-    signals.buttonCount >= 4
-      ? `The page exposes ${signals.buttonCount} buttons and ${signals.anchorCount} links — this volume can split visitor attention before the primary path is clear.`
-      : `With ${signals.buttonCount} button${signals.buttonCount === 1 ? '' : 's'} detected, the hierarchy between primary and secondary actions should be made more visually explicit so visitors know which step matters most.`
-  issues.push(
-    withContext(createCompetingActionsIssue(), {
-      severity: signals.buttonCount >= 4 ? 'medium' : 'low',
-      detail: buttonNote,
-    }),
-  )
-
-  // 5 — Form friction (only if a form is present)
-  if (signals.hasForm) {
-    issues.push(
-      withContext(createFormFrictionIssue(), {
-        severity: 'medium',
-        detail: `At least ${signals.formCount} form element${signals.formCount === 1 ? '' : 's'} found. Forms shown before the value proposition and social proof have been established typically see higher abandonment rates.`,
-      }),
-    )
-  }
 
   return issues
 }

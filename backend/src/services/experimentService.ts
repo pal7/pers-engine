@@ -12,7 +12,7 @@ const TARGET_TOOL = {
     parameters: {
       type: 'object',
       properties: {
-        activityType:      { type: 'string', enum: ['A/B', 'XT', 'MVT', 'Auto-Target'] },
+        activityType:      { type: 'string', enum: ['A/B', 'XT', 'MVT', 'Auto-Target', 'Automated Personalization'] },
         activityName:      { type: 'string' },
         hypothesis:        { type: 'string' },
         vecSelector:       { type: 'string', description: 'CSS selector for the VEC element to modify' },
@@ -80,11 +80,11 @@ const GENERIC_TOOL = {
   type: 'function' as const,
   function: {
     name: 'create_generic_experiment',
-    description: 'Design a generic A/B, MVT, or Feature Flag experiment when no specific platform is detected.',
+    description: 'Design an Adobe Target-style experiment when no specific platform is detected. Use the Adobe Target activity type vocabulary.',
     parameters: {
       type: 'object',
       properties: {
-        experimentType: { type: 'string', enum: ['A/B', 'MVT', 'Feature Flag'] },
+        experimentType: { type: 'string', enum: ['A/B', 'XT', 'MVT', 'Auto-Target', 'Automated Personalization'] },
         hypothesis:     { type: 'string' },
         control:        { type: 'string' },
         variant:        { type: 'string' },
@@ -127,6 +127,22 @@ function buildExperimentPrompt(request: ExperimentRequest): string {
       ? request.pageContext.trustSignalKeywords.join(', ')
       : 'None detected'
 
+  const comparableSection =
+    request.comparableSites && request.comparableSites.length > 0
+      ? '\n\nCOMPARABLE BUSINESSES\nThese sites share a similar business model. Where relevant, reference what works for them to justify your experiment hypotheses:\n' +
+        request.comparableSites
+          .map((s, i) => {
+            const profile = [s.businessType, s.productCategory, s.audience, s.industryVertical]
+              .filter(Boolean).join(' | ')
+            return `${i + 1}. ${s.url}${profile ? ` — ${profile}` : ''}\n   ${s.summary}`
+          })
+          .join('\n')
+      : ''
+
+  const agentSection = request.agentSummary
+    ? `\n\nBROWSER AGENT OBSERVATIONS\nFrom a live browser session:\n${request.agentSummary}`
+    : ''
+
   return `Design one experiment for each issue listed below. Call one tool per issue. Set the experiment id to match the issue id exactly.
 
 ISSUES TO ADDRESS
@@ -139,7 +155,7 @@ Page category: ${request.pageContext.pageType}
 Hero text: ${request.pageContext.heroText || 'Not detected'}
 Candidate CTAs: ${ctaLine}
 Trust signal keywords: ${trustLine}
-Detected tech stack: ${techLine}`
+Detected tech stack: ${techLine}${comparableSection}${agentSection}`
 }
 
 // --- tool call → AnalysisExperiment mapping ---
@@ -205,9 +221,10 @@ function mapToolCall(
       }
     }
     default: {
+      const readableIssue = issueId.replace(/-/g, ' ')
       return {
         id: issueId,
-        title: `${args.experimentType} test`,
+        title: `${args.experimentType}: ${readableIssue}`,
         hypothesis: String(args.hypothesis ?? ''),
         variant: String(args.variant ?? ''),
         metric: String(args.metric ?? ''),
@@ -259,6 +276,12 @@ export async function generateExperimentsWithAI(
             '- One tool call per issue — match the experiment id to the issue id',
             '- Use platform-specific tools only when that platform is in the detected stack',
             '- Use create_generic_experiment for all other cases',
+            '- Vary the activity type across issues — do not use A/B for every issue. Choose the type that best fits:',
+            '    A/B — single copy, layout, or design change; one variable at a time',
+            '    XT (Experience Targeting) — show a different experience to a specific audience (new vs returning visitors, mobile vs desktop, geographic segment)',
+            '    MVT — test multiple page elements simultaneously to find the best combination; needs higher traffic',
+            '    Auto-Target — ML-driven optimisation; serves each visitor their best experience from a defined set; good for high-traffic pages',
+            '    Automated Personalization — 1-to-1 personalisation using ML across many offer combinations; highest-traffic pages',
             '- Hypothesis format: If we [specific change referencing page signals], we expect [measurable outcome] because [reason grounded in observed data]',
             '- Reference specific signals from pageContext in every hypothesis',
             '- primaryMetric must be specific: not "engagement" but "primary CTA click rate" or "form completion rate"',

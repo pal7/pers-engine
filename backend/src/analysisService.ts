@@ -21,6 +21,25 @@ import type { ExtractionResult } from './services/extractionTypes'
 
 type OnProgress = (event: AnalysisProgressEvent) => void
 
+function extractVisionCaptions(session: AgentSession | null): string[] {
+  if (!session) return []
+  const FALLBACK_PREFIXES = ['Screenshot captured', 'Mid-page screenshot captured', 'Clicked "']
+  return session.observations
+    .filter(
+      (o) =>
+        o.screenshotUrl &&
+        o.result.length > 60 &&
+        !FALLBACK_PREFIXES.some((p) => o.result.startsWith(p)),
+    )
+    .map((o) => {
+      const label =
+        o.action === 'screenshot' ? 'Above fold' :
+        o.action === 'scroll' ? 'Mid-page' :
+        `After clicking "${o.target ?? 'CTA'}"`
+      return `${label}: ${o.result}`
+    })
+}
+
 const trustKeywords = [
   'customer stories',
   'customers',
@@ -210,6 +229,7 @@ export async function analyzeWebsite(
   let summary: string
   let comparableSites: ComparableSite[] | undefined
   let siteDescriptor: string | undefined
+  let agentSession: AgentSession | null = null
 
   if (process.env.AZURE_OPENAI_KEY) {
     console.log('[analyze] Using GPT-5.2 for analysis')
@@ -244,10 +264,24 @@ export async function analyzeWebsite(
       emit({ id: 'rag', label: 'No comparable sites in index', status: 'warn' })
     }
 
-    const promptPreview = buildUserPromptPreview(adaptedSignals, evidence, techStack, retrieved)
+    // Await agent before GPT so vision captions from the browser session can inform the analysis.
+    // Agent has been running in parallel during HTML+classify+RAG (~10-15 s), most of its 25 s budget already spent.
+    agentSession = await agentPromise
+    if (agentSession) {
+      emit({ id: 'agent-synthesise', label: 'Browser agent complete', status: 'done', detail: `${agentSession.screenshots.length} screenshots captured` })
+      for (const t of agentSession.techStack) {
+        if (!techStack.some((s) => s.name === t.name)) techStack.push(t)
+      }
+    } else {
+      emit({ id: 'agent-synthesise', label: 'Browser agent did not complete', status: 'warn' })
+    }
+
+    const agentCaptions = extractVisionCaptions(agentSession)
+
+    const promptPreview = buildUserPromptPreview(adaptedSignals, evidence, techStack, retrieved, agentCaptions)
     emit({ id: 'gpt', label: 'Sending prompt to GPT-5.2…', status: 'active', prompt: promptPreview })
 
-    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack, retrieved)
+    const aiResult = await analyzeWithAI(adaptedSignals, evidence, techStack, retrieved, agentCaptions)
     issues = aiResult.issues
     summary = aiResult.summary
 
@@ -258,6 +292,15 @@ export async function analyzeWebsite(
     emit({ id: 'gpt', label: 'Using template fallback — no AI key configured', status: 'warn' })
     issues = generateIssues(evidence, adaptedSignals)
     summary = buildSummary(hostname, evidence, issues)
+    agentSession = await agentPromise
+    if (agentSession) {
+      emit({ id: 'agent-synthesise', label: 'Browser agent complete', status: 'done', detail: `${agentSession.screenshots.length} screenshots captured` })
+      for (const t of agentSession.techStack) {
+        if (!techStack.some((s) => s.name === t.name)) techStack.push(t)
+      }
+    } else {
+      emit({ id: 'agent-synthesise', label: 'Browser agent did not complete', status: 'warn' })
+    }
   }
 
   const extractionWarnings = Array.from(
@@ -278,18 +321,6 @@ export async function analyzeWebsite(
         : []),
     ]),
   )
-
-  // Await the agent — it started in parallel so this is rarely a bottleneck
-  const agentSession = await agentPromise
-  if (agentSession) {
-    emit({ id: 'agent-synthesise', label: 'Browser agent complete', status: 'done', detail: `${agentSession.screenshots.length} screenshots captured` })
-    // Merge any network-intercepted tech the static detector missed
-    for (const t of agentSession.techStack) {
-      if (!techStack.some((s) => s.name === t.name)) techStack.push(t)
-    }
-  } else {
-    emit({ id: 'agent-synthesise', label: 'Browser agent did not complete', status: 'warn' })
-  }
 
   console.log('[analyze] resolved URL:', bestExtraction.signals.finalUrl || analyzedUrl)
   console.log('[analyze] extraction mode:', bestExtraction.extractionMode)

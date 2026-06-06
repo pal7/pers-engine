@@ -7,7 +7,7 @@ import type {
 import type { ExtractedPageSignals } from './extractPageSignals.ts'
 import type { ComparableSite } from '../../../shared/analysis.ts'
 
-const PAGE_TEXT_LIMIT = 1500
+const PAGE_TEXT_LIMIT = 800
 
 // Raw shape GPT returns before we validate and stamp IDs
 interface RawIssue {
@@ -27,33 +27,36 @@ interface RawAiResponse {
 function getCategoryContext(pageType: string): string {
   switch (pageType) {
     case 'ecommerce':
-      return 'Typical issues: cart abandonment, trust signals, CTA hierarchy, product clarity'
+      return 'product benefits unclear, buy button hard to find, too few reviews near the buy button, surprise costs revealed at checkout'
     case 'saas':
-      return 'Typical issues: value proposition clarity, trial friction, feature overwhelm, social proof'
+      return 'unclear what the product does or who it is for, no free trial offer, pricing hidden or confusing, no recognisable customer logos'
     case 'travel':
-      return 'Typical issues: booking friction, trust signals, urgency patterns, price transparency'
+      return 'too many steps to book, fees revealed late, hard to compare options, no social proof near the search or book button'
     case 'finance':
-      return 'Typical issues: trust and compliance signals, complexity reduction, CTA clarity'
+      return 'too much jargon, unclear fees, weak security or trust signals, sign-up form asks for too much upfront'
     default:
-      return 'Typical issues: messaging clarity, CTA hierarchy, trust signals, conversion friction'
+      return 'unclear opening headline, main button hard to find, no visible trust signals, confusing navigation'
   }
 }
-
 
 function buildUserPrompt(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
   comparableSites: ComparableSite[] = [],
+  agentCaptions: string[] = [],
 ): string {
-  return buildUserPromptPreview(signals, evidence, techStack, comparableSites)
+  return buildUserPromptPreview(signals, evidence, techStack, comparableSites, agentCaptions)
 }
 
+// TODO: Review conversion research (Baymard Institute, Nielsen Norman Group, Google Core Web Vitals,
+// CXL Institute) to validate signal priorities and ensure highest-impact indicators are listed first.
 export function buildUserPromptPreview(
   signals: ExtractedPageSignals,
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
   comparableSites: ComparableSite[] = [],
+  agentCaptions: string[] = [],
 ): string {
   const metaLines: string[] = [`URL: ${signals.resolvedUrl}`]
   if (signals.pageTitle) metaLines.push(`Title: ${signals.pageTitle}`)
@@ -62,12 +65,12 @@ export function buildUserPromptPreview(
 
   const signalLines: string[] = [
     `Has form: ${evidence.hasForm}`,
-    `Primary CTA above fold: ${evidence.primaryCTAAboveFold}`,
+    `Main button visible without scrolling: ${evidence.primaryCTAAboveFold}`,
     `Trust signals visible: ${evidence.trustSignalsVisible}`,
     `CTA count: ${evidence.ctaCount}`,
   ]
   if (signals.candidateCtaTexts.length > 0) {
-    signalLines.push(`Candidate CTAs: ${signals.candidateCtaTexts.join(', ')}`)
+    signalLines.push(`Button labels: ${signals.candidateCtaTexts.join(', ')}`)
   }
   if (techStack.length > 0) {
     signalLines.push(
@@ -78,17 +81,17 @@ export function buildUserPromptPreview(
   }
 
   const archLines: string[] = [`Button count: ${signals.buttonCount}`]
-  if (signals.heroText) archLines.push(`Above-fold hero text: ${signals.heroText}`)
+  if (signals.heroText) archLines.push(`Opening headline: ${signals.heroText}`)
   if (signals.formCount > 0) archLines.push(`Form count: ${signals.formCount}`)
   if (signals.trustSignalKeywords.length > 0) {
-    archLines.push(`Trust signal keywords found: ${signals.trustSignalKeywords.join(', ')}`)
+    archLines.push(`Trust words found: ${signals.trustSignalKeywords.join(', ')}`)
   }
 
   const pageTextSample = signals.pageText.slice(0, PAGE_TEXT_LIMIT)
 
   const comparableSection =
     comparableSites.length > 0
-      ? '\n\nCOMPARABLE BUSINESSES\nThe following sites share a similar business model and audience. Use them as a reference point — identify where the analyzed site has the same friction patterns and where it diverges:\n' +
+      ? '\n\nCOMPARABLE BUSINESSES\nThese sites share a similar business model and audience. Identify where the analyzed site has the same friction patterns and where it diverges:\n' +
         comparableSites
           .map(
             (s, i) => {
@@ -100,9 +103,15 @@ export function buildUserPromptPreview(
           .join('\n')
       : ''
 
-  return `ANALYSIS CONTEXT
-Page category: ${evidence.pageType}
-Industry benchmark: ${getCategoryContext(evidence.pageType)}
+  const visualSection =
+    agentCaptions.length > 0
+      ? '\n\nVISUAL OBSERVATIONS\nFrom a live browser session (screenshot + AI vision):\n' +
+        agentCaptions.map((c) => `- ${c}`).join('\n')
+      : ''
+
+  return `PAGE CONTEXT
+Category: ${evidence.pageType}
+Common problems for this type: ${getCategoryContext(evidence.pageType)}
 
 PAGE METADATA
 ${metaLines.join('\n')}
@@ -113,35 +122,20 @@ ${signalLines.join('\n')}
 PAGE ARCHITECTURE
 ${archLines.join('\n')}
 
-PAGE CONTENT SAMPLE
-${pageTextSample}${comparableSection}
+PAGE TEXT SAMPLE
+${pageTextSample}${comparableSection}${visualSection}
 
-INSTRUCTIONS
-ANALYSIS PRIORITIES — evaluate in this order:
-1. Above-fold experience and hero messaging clarity
-2. CTA hierarchy and decision friction
-3. Trust signal placement and specificity
-4. Form friction and progressive disclosure
-5. SEO signals — title tag, H1, meta description alignment
-6. Page architecture — load order, content hierarchy, crawlability
+WHAT TO CHECK (priority order)
+1. Does the opening headline clearly say what the product does and who it is for?
+2. Is the main action button easy to spot without scrolling?
+3. Are there reviews, guarantees, or recognisable logos near the main button?
+4. Does a sign-up or contact form ask for too much information upfront?
+5. Does the page title match the main heading?
 
-Return a JSON object with EXACTLY this structure — no markdown fences, no explanation, only the JSON:
-{
-  "summary": "2-3 sentences: primary conversion goal of this page, the single biggest friction point observed, and one specific quick win",
-  "issues": [
-    {
-      "id": "<kebab-case-descriptor>",
-      "title": "Short issue title",
-      "severity": "high" | "medium" | "low",
-      "detail": "Specific explanation referencing signals from this page",
-      "impact": "Expected impact if addressed",
-      "confidence": "High" | "Medium" | "Low"
-    }
-  ]
-}
+Return JSON only — no markdown, no extra text:
+{"summary":"2-3 sentences: what this page is trying to achieve, the biggest obstacle stopping visitors from acting, and one specific change that would help","issues":[{"id":"kebab-slug","title":"Plain-English title (max 8 words)","severity":"high|medium|low","detail":"What is wrong and which observed signal shows it","impact":"What gets better if this is fixed","confidence":"High|Medium|Low"}]}
 
-Generate exactly 4 issues ordered by severity.
-Do not generate experiments — those are handled separately.`
+Exactly 2 issues, most severe first. No experiments.`
 }
 
 function coerceConfidence(raw: unknown): 'High' | 'Medium' | 'Low' {
@@ -203,6 +197,7 @@ export async function analyzeWithAI(
   evidence: AnalysisEvidence,
   techStack: DetectedTech[],
   comparableSites: ComparableSite[] = [],
+  agentCaptions: string[] = [],
 ): Promise<{ summary: string; issues: AnalysisIssue[] }> {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_KEY
@@ -228,9 +223,9 @@ export async function analyzeWithAI(
     timeout: 30_000,
   })
 
-  const userPrompt = buildUserPrompt(signals, evidence, techStack, comparableSites)
+  const userPrompt = buildUserPrompt(signals, evidence, techStack, comparableSites, agentCaptions)
   const hasComparables = userPrompt.includes('COMPARABLE BUSINESSES')
-  console.log(`[openai] prompt built — ${userPrompt.length} chars, comparable section: ${hasComparables}`)
+  console.log(`[openai] prompt built — ${userPrompt.length} chars, comparable section: ${hasComparables}, visual captions: ${agentCaptions.length}`)
   if (hasComparables) {
     const idx = userPrompt.indexOf('COMPARABLE BUSINESSES')
     console.log('[openai] comparable inject preview:', userPrompt.slice(idx, idx + 200).replace(/\n/g, ' '))
@@ -242,21 +237,17 @@ export async function analyzeWithAI(
     const completion = await client.chat.completions.create({
       model: deployment,
       response_format: { type: 'json_object' },
-      max_completion_tokens: 2048,
+      max_completion_tokens: 1024,
       messages: [
         {
           role: 'system',
           content: [
-            'You are an expert CRO analyst, UX strategist, and digital marketing specialist with deep knowledge of:',
-            '- Conversion rate optimisation: funnel analysis, hypothesis design, A/B testing methodology',
-            '- UX psychology: cognitive load, decision friction, trust signals, social proof patterns',
-            '- SEO fundamentals: title/H1/meta alignment, content hierarchy, Core Web Vitals impact',
-            '- Personalisation platforms: Adobe Target, Optimizely, VWO — implementation patterns and best practices',
+            'You are a website improvement expert helping business owners understand why their pages lose visitors.',
+            'Write in plain English that a founder without a marketing background can understand.',
+            'Never use jargon: avoid "CRO", "above-fold", "primary CTA", "progressive disclosure", "cognitive load", "hero section". Instead write "top of page", "main button", "sign-up form", "too many steps", "opening headline".',
             '',
-            'Your analysis is grounded strictly in observed page signals. You never invent signals not present in the data. Every issue must cite a specific signal. Every experiment must follow this hypothesis format exactly:',
-            '"If we [specific change], we expect [measurable outcome] because [reason grounded in observed signals]."',
-            '',
-            'Return only valid JSON. No markdown. No preamble. No explanation.',
+            'Ground every issue in specific signals from the page data — never invent signals not present in the prompt.',
+            'Return only valid JSON. No markdown. No preamble.',
           ].join('\n'),
         },
         {

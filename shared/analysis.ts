@@ -150,6 +150,8 @@ export interface ExperimentRequest {
   issues: AnalysisIssue[]
   techStack: DetectedTech[]
   evidence: AnalysisEvidence
+  comparableSites?: ComparableSite[]
+  agentSummary?: string
   pageContext: {
     url: string
     summary: string
