@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_request, response) => {
-  response.json({ status: "ok", version: "v4.1" });
+  response.json({ status: "ok", version: "v4.2" });
 });
 
 app.post("/api/analyze", async (request, response) => {
