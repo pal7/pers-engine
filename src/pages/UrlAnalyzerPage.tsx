@@ -83,6 +83,8 @@ export function UrlAnalyzerPage() {
         issues: result.issues,
         techStack: result.techStack,
         evidence: result.evidence,
+        comparableSites: result.comparableSites,
+        agentSummary: result.agentSession?.summary,
         pageContext: {
           url: result.analyzedUrl,
           summary: result.summary,

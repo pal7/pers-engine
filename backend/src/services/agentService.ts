@@ -10,7 +10,7 @@ import type {
   TechStackCategory,
 } from '../../../shared/analysis.ts'
 
-const TOTAL_TIMEOUT_MS = 60_000
+const TOTAL_TIMEOUT_MS = 25_000
 const STEP_TIMEOUT_MS = 10_000
 
 // Domains to match during network interception for tech detection
@@ -172,7 +172,7 @@ export async function runAgentAnalysis(
         try {
           visionResult = await analyzeWithVision(
             screenshotUrl,
-            'You are a CRO analyst. Describe what you see above the fold: the headline, primary CTA, value proposition, and any trust signals. Be concise (3-4 sentences).',
+            'Describe what you see at the top of this page: the main headline, what problem the site claims to solve, the most prominent button or link, and any trust badges or customer logos visible. Keep it to 3-4 sentences.',
           )
         } catch (err) {
           visionResult = `Screenshot captured (vision analysis unavailable: ${err instanceof Error ? err.message : String(err)})`
@@ -210,7 +210,7 @@ export async function runAgentAnalysis(
         try {
           visionResult = await analyzeWithVision(
             screenshotUrl,
-            'You are a CRO analyst. Describe what you see in this mid-page screenshot: key content sections, CTAs, social proof, and any conversion friction. Be concise (2-3 sentences).',
+            'Describe what you see as you scroll down this page: what content sections appear, are there any buttons or sign-up prompts, and is there any social proof like reviews or customer logos? Keep it to 2-3 sentences.',
           )
         } catch (err) {
           visionResult = `Mid-page screenshot captured (vision unavailable: ${err instanceof Error ? err.message : String(err)})`
@@ -274,7 +274,7 @@ export async function runAgentAnalysis(
         try {
           visionResult = await analyzeWithVision(
             screenshotUrl,
-            `You are a CRO analyst. The user just clicked the CTA "${ctaText}". Describe what happened: did a modal open, a new page load, a form appear? Note any friction or positive signals. Be concise (2-3 sentences).`,
+            `The visitor just clicked "${ctaText}". Describe what happened: did a modal appear, a new page load, or a form show up? Is the next step clear? Note any friction or anything that might make a visitor abandon. Keep it to 2-3 sentences.`,
           )
         } catch {}
       }
@@ -332,7 +332,7 @@ export async function runAgentAnalysis(
       try {
         summary = await analyzeWithVision(
           screenshots[0],
-          `You are a senior CRO analyst. Based on this above-fold screenshot and these agent observations, provide a 3-4 sentence synthesis of the site's conversion strengths and weaknesses:\n\n${observationText}${techText}`,
+          `Based on this screenshot and the observations below, write 3-4 sentences summarising what this page does well and what is most likely stopping visitors from taking action. Be specific — reference what you can see.\n\n${observationText}${techText}`,
         )
       } catch {
         summary = observations.map((o) => o.result).join(' ')

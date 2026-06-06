@@ -386,13 +386,13 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
             aria-labelledby='analysis-screenshots-title'
           >
             <div className='url-analyzer-result__section-header'>
-              <h3 id='analysis-screenshots-title'>Agent screenshots</h3>
-              <p>Captured during the live browser session — used to generate experiment ideas below.</p>
+              <h3 id='analysis-screenshots-title'>Areas analysed</h3>
+              <p>Page sections captured during the live browser session.</p>
             </div>
             <div className='screenshot-gallery'>
               {agentSession.screenshots.map((url, i) => {
                 const obs = getObservationForScreenshot(agentSession.observations, url)
-                const label = obs ? (SCREENSHOT_STEP_LABELS[obs.action] ?? `Step ${obs.step}`) : `Screenshot ${i + 1}`
+                const label = obs ? (SCREENSHOT_STEP_LABELS[obs.action] ?? `Screenshot ${i + 1}`) : `Screenshot ${i + 1}`
                 return (
                   <figure key={url} className='screenshot-item'>
                     <div className='screenshot-item__img-wrap'>
@@ -402,9 +402,6 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
                     </div>
                     <figcaption className='screenshot-item__caption'>
                       <span className='screenshot-item__label'>{label}</span>
-                      {obs?.result && (
-                        <p className='screenshot-item__analysis'>{obs.result}</p>
-                      )}
                     </figcaption>
                   </figure>
                 )
@@ -419,7 +416,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
         >
           <div className='url-analyzer-result__section-header'>
             <h3 id='analysis-experiments-title'>Experiment suggestions</h3>
-            <p>Top two A/B tests to run based on the identified issues.</p>
+            <p>Two experiment suggestions based on the identified issues.</p>
           </div>
 
           {experimentStatus === 'idle' && (
@@ -427,7 +424,7 @@ export function UrlAnalyzerResult({ result, experimentStatus, experiments, onGen
               className='generate-btn'
               onClick={onGenerateExperiments}
               type='button'
-              aria-label='Generate A/B experiment suggestions based on the identified issues'
+              aria-label='Generate experiment suggestions based on the identified issues'
             >
               Generate experiment suggestions
             </button>
