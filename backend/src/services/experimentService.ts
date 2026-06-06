@@ -13,7 +13,7 @@ const TARGET_TOOL = {
       type: 'object',
       properties: {
         activityType:      { type: 'string', enum: ['A/B', 'XT', 'MVT', 'Auto-Target', 'Automated Personalization'] },
-        activityName:      { type: 'string' },
+        activityName:      { type: 'string', description: 'Max 5 words, plain English, no jargon' },
         hypothesis:        { type: 'string' },
         vecSelector:       { type: 'string', description: 'CSS selector for the VEC element to modify' },
         controlExperience: { type: 'string' },
@@ -160,6 +160,26 @@ Detected tech stack: ${techLine}${comparableSection}${agentSection}`
 
 // --- tool call → AnalysisExperiment mapping ---
 
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  'A/B':                      'A/B Test',
+  'a/b':                      'A/B Test',
+  'AB':                       'A/B Test',
+  'XT':                       'Experience Targeting',
+  'MVT':                      'Multivariate Test',
+  'multivariate':             'Multivariate Test',
+  'Multivariate':             'Multivariate Test',
+  'Auto-Target':              'Auto-Target',
+  'Automated Personalization':'Automated Personalization',
+  'feature_flag':             'Feature Flag',
+  'Feature Flag':             'Feature Flag',
+  'Split URL':                'Split URL Test',
+}
+
+function formatType(raw: unknown): string {
+  const s = String(raw ?? '')
+  return ACTIVITY_TYPE_LABELS[s] ?? s
+}
+
 function mapToolCall(
   toolName: string,
   args: Record<string, unknown>,
@@ -168,63 +188,51 @@ function mapToolCall(
   switch (toolName) {
     case 'create_target_experiment': {
       const hint = [
-        `Create ${args.activityType} activity: "${args.activityName}".`,
         `VEC selector: ${args.vecSelector}.`,
-        `Control: ${args.controlExperience}.`,
-        `Variant: ${args.variantExperience}.`,
-        args.audienceRule ? `Audience rule: ${args.audienceRule}.` : '',
+        args.audienceRule ? `Audience: ${args.audienceRule}.` : '',
       ]
         .filter(Boolean)
         .join(' ')
       return {
         id: issueId,
-        title: `Adobe Target ${args.activityType}: ${args.activityName}`,
+        title: `${formatType(args.activityType)}: ${args.activityName}`,
         hypothesis: String(args.hypothesis ?? ''),
         variant: `${args.controlExperience} → ${args.variantExperience}`,
         metric: String(args.primaryMetric ?? ''),
         impact: '',
         confidence: 'Medium',
-        implementationHint: hint,
+        implementationHint: hint || undefined,
       }
     }
     case 'create_optimizely_experiment': {
       const variations = (args.variations as Array<{ name: string; changes: string }>) ?? []
       const variantSummary = variations.map((v) => `${v.name}: ${v.changes}`).join('; ')
-      const hint = [
-        `Create ${args.experimentType} experiment: "${args.experimentName}".`,
-        `Variations: ${variantSummary}.`,
-        args.audienceConditions ? `Audience: ${args.audienceConditions}.` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
       return {
         id: issueId,
-        title: `Optimizely ${args.experimentType}: ${args.experimentName}`,
+        title: `${formatType(args.experimentType)}: ${args.experimentName}`,
         hypothesis: String(args.hypothesis ?? ''),
         variant: variantSummary,
         metric: String(args.primaryMetric ?? ''),
         impact: '',
         confidence: 'Medium',
-        implementationHint: hint,
+        implementationHint: args.audienceConditions ? `Audience: ${args.audienceConditions}` : undefined,
       }
     }
     case 'create_vwo_experiment': {
       return {
         id: issueId,
-        title: `VWO ${args.campaignType}`,
+        title: `${formatType(args.campaignType)}: ${issueId.replace(/-/g, ' ')}`,
         hypothesis: String(args.hypothesis ?? ''),
-        variant: String(args.variation ?? ''),
+        variant: `${args.control} → ${args.variation}`,
         metric: String(args.primaryGoal ?? ''),
         impact: '',
         confidence: 'Medium',
-        implementationHint: `Create ${args.campaignType} campaign. Control: ${args.control}. Variation: ${args.variation}.`,
       }
     }
     default: {
-      const readableIssue = issueId.replace(/-/g, ' ')
       return {
         id: issueId,
-        title: `${args.experimentType}: ${readableIssue}`,
+        title: `${formatType(args.experimentType)}: ${issueId.replace(/-/g, ' ')}`,
         hypothesis: String(args.hypothesis ?? ''),
         variant: String(args.variant ?? ''),
         metric: String(args.metric ?? ''),
@@ -278,13 +286,16 @@ export async function generateExperimentsWithAI(
             '- Use create_generic_experiment for all other cases',
             '- Vary the activity type across issues — do not use A/B for every issue. Choose the type that best fits:',
             '    A/B — single copy, layout, or design change; one variable at a time',
-            '    XT (Experience Targeting) — show a different experience to a specific audience (new vs returning visitors, mobile vs desktop, geographic segment)',
-            '    MVT — test multiple page elements simultaneously to find the best combination; needs higher traffic',
-            '    Auto-Target — ML-driven optimisation; serves each visitor their best experience from a defined set; good for high-traffic pages',
-            '    Automated Personalization — 1-to-1 personalisation using ML across many offer combinations; highest-traffic pages',
-            '- Hypothesis format: If we [specific change referencing page signals], we expect [measurable outcome] because [reason grounded in observed data]',
-            '- Reference specific signals from pageContext in every hypothesis',
-            '- primaryMetric must be specific: not "engagement" but "primary CTA click rate" or "form completion rate"',
+            '    XT (Experience Targeting) — different experience for a specific audience segment (new vs returning, mobile vs desktop)',
+            '    MVT — test multiple page elements simultaneously; needs higher traffic',
+            '    Auto-Target — ML picks the best experience per visitor from a defined set',
+            '    Automated Personalization — 1-to-1 ML personalisation; highest-traffic pages only',
+            '',
+            'Brevity rules — keep every field short and plain:',
+            '- activityName / experimentName: max 5 words, plain English, no jargon (e.g. "Simplify hero buttons", "Add trust badges")',
+            '- Hypothesis: exactly 2 sentences. Sentence 1: what changes and why it should help. Sentence 2: what metric improves. No URLs, no parentheticals, no lists.',
+            '- controlExperience / variantExperience / control / variant: 1 short sentence each — describe what the visitor sees, not the code',
+            '- primaryMetric / metric: a short phrase only (e.g. "main button click rate", "form completion rate") — not a full sentence',
           ].join('\n'),
         },
         {

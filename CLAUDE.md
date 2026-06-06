@@ -118,13 +118,13 @@ infra/AZURE_SETUP.md
 - ✅ URL analysis — GPT-5.2 generates **2 issues** + summary; plain English output (no CRO jargon — no "above-fold", "primary CTA", "progressive disclosure", "cognitive load"); grounded in observed page signals
 - ✅ BAG pipeline — 439 seeded analyses in Azure AI Search (11 categories × 40: ecommerce, saas, travel, finance, healthcare, b2b, education, realestate, food, automotive, media); sites classified by business DNA, top-3 comparable businesses retrieved by descriptor embedding similarity (self-reference excluded), injected into GPT prompt for both issues AND experiments; shown in "Comparable businesses" accordion in the UI
 - ✅ Tech stack detection (58+ tools, 14 categories incl. consent, monitoring, font, chat); wired into GPT prompt
-- ✅ Experiment generation — `/api/experiments` uses AI tool-calling with Adobe Target activity types (A/B, XT, MVT, Auto-Target, Automated Personalization); platform-specific tools for Optimizely and VWO when detected; agent synthesis summary injected as BROWSER AGENT OBSERVATIONS; comparable businesses injected as COMPARABLE BUSINESSES; falls back to templates if no AI key
+- ✅ Experiment generation — `/api/experiments` uses AI tool-calling with Adobe Target activity types (A/B Test, Experience Targeting, Multivariate Test, Auto-Target, Automated Personalization); platform-specific tools for Optimizely and VWO when detected; titles use full readable type names without platform prefix (e.g. "Experience Targeting: simplify hero buttons"); hypothesis capped at 2 sentences, variant/metric kept short; agent synthesis summary injected as BROWSER AGENT OBSERVATIONS; comparable businesses injected as COMPARABLE BUSINESSES; falls back to templates if no AI key
 - ✅ Streaming analysis — `/api/analyze/stream` emits SSE progress events (fetch, browser-fallback, classify, rag, agent-synthesise, gpt)
 - ✅ Agentic Playwright analysis — live browser session, 25 s timeout, 7 steps (navigate, runtime signals, above-fold screenshot, tech from network, scroll + mid-page screenshot, CTA click + post-click screenshot, synthesise); vision prompts written in plain English
 - ✅ Vision captions fed into main analysis — agent screenshot captions (steps 2, 4, 5) injected into GPT analysis prompt as VISUAL OBSERVATIONS; agent now awaited before GPT call so captions are available
 - ✅ Screenshot blob storage — agent screenshots uploaded to Azure Blob Storage (`agent-screenshots` container), returned as public URLs in `AgentSession.screenshots[]`
-- ✅ Screenshot gallery rendered in UI — 3 screenshots with vision-analysis captions, each links to full-res blob
-- ✅ Experiment cards — 2 expandable accordion cards; expand reveals hypothesis, variant change, metric, implementation hint, and relevant screenshot
+- ✅ Screenshot gallery ("Areas analysed") — shows above-fold and mid-page screenshots with simple labels only (no verbose vision text); each links to full-res blob
+- ✅ Experiment cards — 2 expandable accordion cards; expand reveals hypothesis, variant change, metric, implementation hint, and relevant screenshot (above-fold matched by default)
 - ✅ "Generate more experiments" premium teaser — locked UI element, not yet functional
 - ✅ Page signals accordion — expandable table of raw signals used in analysis
 
@@ -147,6 +147,8 @@ infra/AZURE_SETUP.md
 - ✅ Expanded seed corpus — 439 documents across 11 categories (ecommerce, saas, travel, finance, healthcare, b2b, education, realestate, food, automotive, media); business DNA classification via `classifyService.ts`; self-reference excluded from RAG results; `--categories` filter in seed pipeline for incremental re-seeding (`npm run seed-new`)
 
 #### Still to do — UI / visual analysis
+- ⬜ Crop/size experiment screenshots to the relevant area — instead of full-page screenshots in experiment cards, crop to just the element being tested (e.g. hero area for above-fold experiments, mid-page section for scroll experiments); coordinates could come from a structured GPT response or CSS-clip approach on the front end
+- ⬜ Screenshot-anchored experiment ideas — generate one experiment per screenshot area (experiment 1 grounded in above-fold screenshot, experiment 2 grounded in mid-page screenshot) rather than purely issue-driven; this gives each experiment a clear visual reference and makes the "current state" screenshot in the card directly relevant
 - ⬜ Annotated screenshot overlay — draw bounding boxes / arrows on the above-fold screenshot (canvas or SVG layer; coordinates from vision or structured GPT response)
 - ⬜ PDF / printable report export — one-page summary (issues + 2 experiments + screenshots) as downloadable PDF; consider `@react-pdf/renderer` or `window.print()` with print stylesheet
 - ⬜ "Generate more experiments" — wire the premium teaser to an auth gate and the `/api/experiments` endpoint
@@ -168,7 +170,7 @@ The `analyses` index in Azure AI Search contains 439 pre-seeded websites across 
 1. `extractHtmlSignals` — fast HTML extraction; Playwright agent starts in parallel immediately
 2. `classifyService.ts` + `extractRenderedSignals` run **in parallel** — classify uses HTML signals immediately while browser fallback runs concurrently (~3-5s classify is free on JS-heavy sites)
 3. `ragService.ts` — embed the descriptor, vector search for top-3 comparable businesses (pure vector similarity, no OData filter); analyzed URL excluded from results by hostname match
-4. `agentService.ts` awaited here (25 s timeout; agent has been running ~10-15 s already); vision captions extracted from steps 2/4/5
+4. `agentService.ts` awaited here (25 s timeout; above-fold screenshot reliably completes within budget; mid-page and CTA screenshots are bonus); vision captions extracted from completed steps
 5. GPT call — prompt includes `COMPARABLE BUSINESSES`, `VISUAL OBSERVATIONS` (agent captions), `PAGE_TEXT_LIMIT=800` chars; returns **2 issues** in plain English
 6. Results returned in `AnalysisResponse`; `comparableSites[]` and `agentSession` shown in UI
 

@@ -265,7 +265,7 @@ export async function analyzeWebsite(
     }
 
     // Await agent before GPT so vision captions from the browser session can inform the analysis.
-    // Agent has been running in parallel during HTML+classify+RAG (~10-15 s), most of its 25 s budget already spent.
+    // Agent has been running in parallel during HTML+classify+RAG (~10-15 s); above-fold screenshot typically completes within the 25 s budget.
     agentSession = await agentPromise
     if (agentSession) {
       emit({ id: 'agent-synthesise', label: 'Browser agent complete', status: 'done', detail: `${agentSession.screenshots.length} screenshots captured` })
